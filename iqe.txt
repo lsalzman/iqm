@@ -1,0 +1,194 @@
+IQE: Inter-Quake Export format
+
+April 20, 2010: Version 0
+January 11, 2012: Added 'vx' command
+
+* Header
+The first line of an IQE file must be:
+# Inter-Quake Export
+
+No spaces precede the #, and any characters after the word Export (such as spaces, line feeds, new lines, etc.) are ignored.
+
+
+
+* Comments 
+Any line beginning with # is a comment that proceeds to the end of the line.
+
+
+
+* Vertex attributes
+All vertex attributes are read into separate vertex arrays. Each vertex array must either be absent, or the same length as all other vertex arrays. The attributes may be interleaved in any order, or not interleaved at all, as desired.
+
+The following commands define vertex attributes:
+
+vp X Y Z W
+   Position defined by <X, Y, Z, W>. If W is unspecified, it defaults to 1. If X, Y, or Z are unspecified, they default to 0.
+
+vt U V
+   Texture coordinate defined by <U, V>. If U or V are unspecified, they default to 0.
+
+vn X Y Z
+   Normal defined by <X, Y, Z>.
+
+vx X Y Z W
+vx X Y Z A B C
+   Tangent vectors defined either by tangent <X, Y, Z> and sign(W) = sign(dot(cross(normal, tangent), bitangent)) where normal is as above, or by tangent <X, Y, Z> and bitangent <A, B, C>, depending on the number of parameters supplied to the command. If only 4 or less parameters are specified, the first form is assumed, and otherwise the second form is assumed.
+
+vb Ai Aw Bi Bw Ci Cw Di Dw
+   Blend indexes defined by <Ai, Bi, Ci, Di> and blend weights defined by <Aw, Bw, Cw, Dw>, where indexes start from 0 which references the first listed joint. If any are unspecified, they default to unused. More indexes and weights may be specified than 4, however the implementation may renormalize the weights to only use the biggest 4.
+
+vc R G B A
+   Color defined by <R, G, B, A>. If A is unspecified, it defaults to 1. If R, G, or B are unspecified, they default to 0.
+
+v0 X Y Z W
+...
+v9 X Y Z W
+   Custom attribute 0 ... 9 defined by <X, Y, Z, W>. If any are unspecified, they default to 0.
+
+
+
+* Vertex arrays
+Unless specified, the type of each vertex array defaults to the type recommended in the IQM specification. 
+Position arrays default specifically to 3 components (any W coordinates are ignored).
+Color arrays default specifically to 3 components (any A channels are ignored).
+Custom attributes without a defined format are unused.
+
+The format of each vertex array may be defined with the following command, if desired:
+
+vertexarray TYPE COMPONENT SIZE NAME
+    TYPE may be any of the following:
+       position
+       texcoord
+       normal
+       tangent
+       blendindexes
+       blendweights
+       color
+       custom0
+       ...
+       custom9
+    Any other value of TYPE is ignored.
+
+    COMPONENT may be any of the following:
+       byte
+       ubyte
+       short
+       ushort
+       int
+       uint
+       half
+       float
+       double
+    Any other value of COMPONENT is ignored.
+
+    SIZE specifies a number of components between 1 and 4. Any other value of SIZE is ignored.
+
+    NAME specifies a name to be used for custom attributes 0 through 9. If not specified, the name defaults to the TYPE name.
+
+
+
+* Meshes
+Meshes contain either triangle or vertex data. If any triangle data is specified anywhere in the file, then each mesh contains solely those triangles defined by face commands between the preceding "mesh" command and the next (or end of file). If there is no triangle data, then all vertex data between the preceding "mesh" command and the next is interpreted as mesh local triangle data, where each group of 3 vertexes defines a triangle.
+
+Meshes may be defined with the following commands:
+
+mesh NAME
+  NAME defines the name of the mesh and defaults to the empty string if unspecified.
+
+material NAME
+  NAME defines the name of the material to use for the current mesh and defaults to the empty string if unspecified.
+
+
+
+
+
+* Triangles
+Triangles are defined by indexing into the vertex arrays, where each attribute in the vertex arrays at the same index corresponds to one vertex for that index.
+
+Triangles may be defined with the following commands:
+ 
+fa A B C...
+  A, B, and C are indexes into the vertex arrays starting from the first vertex in the file at index 0. Negative indexes are relative to the last defined vertex which is at -1. If any indexes are supplied after C, then <A, B, C, ...> is interpreted as a convex, planar polygon.
+
+fm A B C...
+  A, B, and C are indexes into the vertex arrays starting from the first vertex defined after the last "mesh" command was issued as index 0. Negative indexes are relative to the last defined vertex which is at -1. As above, extra indexes generate a convex, planar polygon.
+
+
+
+* Smoothing
+Several types of smoothing are supported on triangles for generating normals, if normals are not explicitly specified. Smoothing operates across mesh boundaries. Given a vertex position that is shared between two triangles, these two triangle corners sharing a position will map to the same vertex index for normal calculations if they are compatible as defined by smoothing parameters. All triangles that use a vertex index will contribute their normal to the average normal for that vertex index. Note that if more than one type of smoothing is used, the two triangle corners to be smoothed must pass all applicable smoothing tests.
+
+The following commands set smoothing parameters for all triangles that follow:
+
+smoothuv N
+   If N > 0, enables smoothing of all triangle corners whose texture coordinates <U, V> match. If N <= 0, this disables it. This is disabled by default.
+
+smoothgroup N
+   Sets the smoothing group key to N, such that any two triangles whose key matches are smoothed. The default smoothing group key is -1.
+
+smoothangle ANGLE
+   Sets the maximum displacement angle of surface normals for which two triangles are smoothed to ANGLE degrees in any direction. If the angle between the surface normals exceeds this amount, the triangles are not smoothed. This defaults to 180 degrees. If ANGLE is 0 degrees, this effectively forced all surfaces to be faceted.
+
+fs A B C...
+   Controls smoothing along individual triangle edges with any neighboring triangles matching those edges. A, B, and C are flags valued 0 or 1 indicates when the corresponding triangle edge in an "fa" or "fm" face command starting at the corresponding vertex in the winding order should smooth with any triangles matching this edge. As above, extra flags generate a convex, planar polygon. The number of uses of this command and the number of parameters per command use should match up with any usage of "fa" or "fm" face commands.
+
+vs N
+   Sets a smoothing index for a given vertex to N, where any triangle corners whose vertexes have matching smoothing indexes will become smoothed. This attribute must be present for each vertex if used and is useful for cases where vertexes had to be cloned during export and the index corresponds to the index of the original vertex before export.
+
+
+* Poses
+Each pose defines the transformation for a single joint and contains a translation part, a rotation part, and an optional scale part. These are interpreted as applied such that: output = (input*scale)*rotation + translation. Poses defined before any "animation" command in the file are appended to the list of base poses, whereas poses defined after an "animation" command are appended to the lists of poses for that animation.
+
+Poses may be defined with the following commands:
+
+pq Tx Ty Tz Qx Qy Qz Qw Sx Sy Sz
+   Defines a pose with translation <Tx, Ty, Tz> and quaternion rotation <Qx, Qy, Qz, Qw>. If Qw is unspecified, it is generated such that it is a negative value. Scaling <Sx, Sy, Sz> is optional and defaults to 1 if unspecified.
+
+pm Tx Ty Tz Ax Ay Az Bx By Bz Cx Cy Cz Sx Sy Sz
+   Defines a pose with translation <Tx, Ty, Tz> and the following rotation matrix:
+      [Ax Ay Az]
+      [Bx By Bz]
+      [Cx Cy Cz]
+   The rotation matrix may include scaling directly. Scaling <Sx, Sy, Sz> is optional and defaults to 1 if unspecified.
+
+pa Tx Ty Tz Rx Ry Rz Sx Sy Sz
+   Defines a pose with translation <Tx, Ty, Tz> and with rotations Rx, Ry, and Rz applied in radians. Scaling <Sx, Sy, Sz> is optional and defaults to 1 if unspecified.
+
+
+
+* Skeleton
+The skeleton is defined by a hierarchy of named joints. Any joint without a parent is a root.
+
+Joints are defined by the following commands:
+
+joint NAME PARENT
+  NAME defines the name of the joint. PARENT is an index into the list of joints, where 0 is the first listed joint. If PARENT is less than 0 or unspecified, then the joint has no parent.
+
+Any poses defined before any "animation" commands in the file are appended to a list of base poses, where the Nth pose in the list corresponds to the Nth specified joint.
+
+
+
+* Animations
+Each animation contains a list of poses separated into keyframes. Each frame should contain a number of poses equal to the number of joints in the skeleton. Any poses added to an animation apply to the current keyframe of the current animation.
+
+Animations are defined by the following commands:
+
+animation NAME
+  NAME defines the name of the animation, and if unspecified, defaults to an unused dummy name for this file.
+
+loop
+  Sets the looping flag in the current animation.
+
+framerate N
+  Sets the framerate of the current animation to N frames per second.
+
+frame
+  Starts a new keyframe of animation. Any poses added to the animation after this command are added to this new keyframe.
+
+
+
+* Comment section
+The "comment" command may be used to append any exporter specific comments verbatim into the generated IQM file. All text starting on the line after the "comment" command, up to the end of the file, is treated verbatim as the comment section.
+
+
+

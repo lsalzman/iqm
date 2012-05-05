@@ -1,0 +1,30 @@
+CXXFLAGS= -O3 -fomit-frame-pointer
+INCLUDES= -I.
+override CXXFLAGS+= -Wall -fsigned-char $(INCLUDES)
+
+PLATFORM= $(shell uname -s)
+ifeq (,$(findstring MINGW,$(PLATFORM)))
+CXX=i586-mingw32msvc-g++
+endif
+
+LIBS= -mwindows -L. -lfreeglut -lopengl32
+OBJS= \
+	demo.o \
+	texture.o
+GPU_OBJS= \
+	gpu-demo.o \
+	texture.o
+
+default: all
+
+all: demo.exe gpu-demo.exe
+
+clean:
+	-$(RM) $(OBJS) $(GPU_OBJS) demo.exe gpu-demo.exe
+
+demo.exe: $(OBJS)
+	$(CXX) $(CXXFLAGS) -o demo.exe $(OBJS) $(LIBS)
+
+gpu-demo.exe: $(GPU_OBJS)
+	$(CXX) $(CXXFLAGS) -o gpu-demo.exe $(GPU_OBJS) $(LIBS)
+
