@@ -1233,8 +1233,11 @@ bool loadiqe(const char *filename, const filespec &spec)
             case 'b': eblends.add(parseblends(c)); continue;
             case 'c': ecolors.add(parseattribs4(c, Vec4(0, 0, 0, 1))); continue;
             case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
-                ecustom[c[-1] - '0'].add(parseattribs4(c));
+            {
+                int n = c[-1] - '0';
+                ecustom[n].add(parseattribs4(c));
                 continue;
+            }
             case 's':
                 parseindex(c, esmoothindexes.add());
                 continue;
