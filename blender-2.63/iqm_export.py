@@ -818,7 +818,6 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
                             alpha = layer.data
                     elif not colors:
                         colors = layer.data
-            colors = usecol and data.tessface_vertex_colors.active and data.tessface_vertex_colors.active.data
             for face in data.tessfaces:
                 if len(face.vertices) < 3:
                     continue
@@ -875,13 +874,13 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
 
                     if facealpha:
                         if i == 0:
-                            vertalpha = facecol.color1
+                            vertalpha = facealpha.color1
                         elif i == 1:
-                            vertalpha = facecol.color2
+                            vertalpha = facealpha.color2
                         elif i == 2:
-                            vertalpha = facecol.color3
+                            vertalpha = facealpha.color3
                         else:
-                            vertalpha = facecol.color4
+                            vertalpha = facealpha.color4
                         if vertcol:
                             vertcol = (vertcol[0], vertcol[1], vertcol[2], int(round(vertalpha[0] * 255.0)))
                         else:                            
