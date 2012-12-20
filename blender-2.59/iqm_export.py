@@ -813,12 +813,12 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
             alpha = None
             if usecol:
                 if data.vertex_colors.active:
-                    if data.vertex_colors.active.name == 'alpha':
+                    if data.vertex_colors.active.name.startswith('alpha'):
                         alpha = data.vertex_colors.active.data
                     else:
                         colors = data.vertex_colors.active.data
                 for layer in data.vertex_colors:
-                    if layer.name == 'alpha':
+                    if layer.name.startswith('alpha'):
                         if not alpha:
                             alpha = layer.data
                     elif not colors:

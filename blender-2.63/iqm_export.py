@@ -808,12 +808,12 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
             alpha = None
             if usecol:
                 if data.tessface_vertex_colors.active:
-                    if data.tessface_vertex_colors.active.name == 'alpha':
+                    if data.tessface_vertex_colors.active.name.startswith('alpha'):
                         alpha = data.tessface_vertex_colors.active.data
                     else:
                         colors = data.tessface_vertex_colors.active.data
                 for layer in data.tessface_vertex_colors:
-                    if layer.name == 'alpha':
+                    if layer.name.startswith('alpha'):
                         if not alpha:
                             alpha = layer.data
                     elif not colors:
