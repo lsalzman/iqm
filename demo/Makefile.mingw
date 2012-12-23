@@ -4,10 +4,10 @@ override CXXFLAGS+= -Wall -fsigned-char $(INCLUDES)
 
 PLATFORM= $(shell uname -s)
 ifeq (,$(findstring MINGW,$(PLATFORM)))
-CXX=i586-mingw32msvc-g++
+CXX=i686-w64-mingw32-g++
 endif
 
-LIBS= -mwindows -L. -lfreeglut -lopengl32
+LIBS= -mwindows -static-libgcc -static-libstdc++ -L. -lfreeglut -lopengl32
 OBJS= \
 	demo.o \
 	texture.o

@@ -3,10 +3,10 @@ override CXXFLAGS+= -Wall -fsigned-char
 
 PLATFORM= $(shell uname -s)
 ifeq (,$(findstring MINGW,$(PLATFORM)))
-CXX=i586-mingw32msvc-g++
+CXX=i686-w64-mingw32-g++
 endif
 
-LIBS= -mwindows
+LIBS= -mwindows -static-libgcc -static-libstdc++
 IQM_OBJS= \
 	iqm.o
 UPGRADE_OBJS= \
