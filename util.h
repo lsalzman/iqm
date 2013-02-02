@@ -238,6 +238,28 @@ template <class T> struct vector
     }
 };
 
+static inline uint hthash(const char *key)
+{
+    uint h = 5381;
+    for(int i = 0, k; (k = key[i]); i++) h = ((h<<5)+h)^k;    // bernstein k=33 xor
+    return h;
+}
+
+static inline bool htcmp(const char *x, const char *y)
+{
+    return !strcmp(x, y);
+}
+
+static inline uint hthash(int key)
+{
+    return key;
+}
+
+static inline bool htcmp(int x, int y)
+{
+    return x==y;
+}
+
 template <class K, class T> struct hashtable
 {
     typedef K key;
@@ -363,28 +385,6 @@ template <class K, class T> struct hashtable
 };
 
 #define enumerate(ht,k,e,t,f,b) loopi((ht).size)  for(hashtable<k,t>::chain *enumc = (ht).table[i]; enumc;) { hashtable<k,t>::const_key &e = enumc->key; t &f = enumc->data; enumc = enumc->next; b; }
-
-static inline uint hthash(const char *key)
-{
-    uint h = 5381;
-    for(int i = 0, k; (k = key[i]); i++) h = ((h<<5)+h)^k;    // bernstein k=33 xor
-    return h;
-}
-
-static inline bool htcmp(const char *x, const char *y)
-{
-    return !strcmp(x, y);
-}
-
-static inline uint hthash(int key)
-{   
-    return key;
-}
-
-static inline bool htcmp(int x, int y)
-{
-    return x==y;
-}
 
 template<class T>
 struct unionfind

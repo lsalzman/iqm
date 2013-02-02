@@ -402,7 +402,8 @@ void smoothverts(bool areaweight = true)
         {
             weldinfo **next = &welds.access(epositions[t.vert[k]], NULL);
             if(! (nextalloc % 1024)) allocs.add(new weldinfo[1024]);
-            weldinfo &w = allocs[nextalloc/1024][nextalloc++%1024];
+            weldinfo &w = allocs[nextalloc/1024][nextalloc%1024];
+            nextalloc++;
             w.tri = i;
             w.vert = k;
             w.next = *next;
