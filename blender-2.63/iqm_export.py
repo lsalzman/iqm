@@ -50,6 +50,22 @@ IQM_BOUNDS      = struct.Struct('<8f')
 
 MAXVCACHE = 32
 
+def IQMerror(operator, message):
+    operator.report({'ERROR'}, message)
+    return {'CANCELLED'}
+
+def IQMdebug(operator, message):
+    operator.report({'DEBUG'}, message)
+    return {'CANCELLED'}
+
+def IQMwarning(operator, message):
+    operator.report({'WARNING'}, message)
+    return None
+
+def IQMinfo(operator, message):
+    operator.report({'INFO'}, message)
+    return None
+
 class Vertex:
     def __init__(self, index, coord, normal, uv, weights, color):
         self.index   = index
@@ -106,7 +122,8 @@ class Vertex:
 
 
 class Mesh:
-    def __init__(self, name, material, verts):
+    def __init__(self, operator, name, material, verts):
+        self.operator  = operator
         self.name      = name
         self.material  = material
         self.verts     = [ None for v in verts ]
@@ -205,10 +222,10 @@ class Mesh:
                         besttri = i
                         bestscore = score
 
-        print('%s: %d verts optimized to %d/%d loads for %d entry LRU cache' % (self.name, len(self.verts), vertloads, len(vertschedule), MAXVCACHE))
-        #print('%s: %d verts scheduled to %d' % (self.name, len(self.verts), len(vertschedule)))
+        IQMdebug(self.operator, '%s: %d verts optimized to %d/%d loads for %d entry LRU cache' % (self.name, len(self.verts), vertloads, len(vertschedule), MAXVCACHE))
+        #IQMdebug(self.operator, '%s: %d verts scheduled to %d' % (self.name, len(self.verts), len(vertschedule)))
         self.verts = vertschedule
-        # print('%s: %d tris scheduled to %d' % (self.name, len(self.tris), len(trischedule)))         
+        # IQMdebug(self.operator, '%s: %d tris scheduled to %d' % (self.name, len(self.tris), len(trischedule)))         
         self.tris = trischedule                 
 
     def calcNeighbors(self):
@@ -408,13 +425,14 @@ class Animation:
             invbase.append(bone.matrix.inverted())
         data = b''
         for i, frame in enumerate(self.frames):
-            print('Calculating bounding box for %s:%d' % (self.name, i))
+            IQMdebug(self.operator, 'Calculating bounding box for %s:%d' % (self.name, i))
             data += self.frameBoundsData(bones, meshes, frame, invbase)     
         return data
    
  
 class IQMFile:
-    def __init__(self):
+    def __init__(self, operator):
+        self.operator = operator
         self.textoffsets = {}
         self.textdata = b''
         self.meshes = []
@@ -474,7 +492,7 @@ class IQMFile:
         for joint in self.joints:
             if self.anims:
                 self.posedata.append(joint.poseData(self))
-        print('Exporting %d frames of size %d' % (self.numframes, self.framesize))
+        IQMdebug(self.operator, 'Exporting %d frames of size %d' % (self.numframes, self.framesize))
  
     def writeVerts(self, file, offset):
         if self.numverts <= 0:
@@ -637,7 +655,7 @@ def findArmature(context):
     return armature
 
 
-def derigifyBones(context, armature, scale):
+def derigifyBones(operator, context, armature, scale):
     data = armature.data
 
     orgbones = {}
@@ -692,11 +710,11 @@ def derigifyBones(context, armature, scale):
             bonematrix.translation *= scale
         bones[bone.name] = Bone(bname, bone.name, index, bname in defparent and bones.get(defbones[defparent[bname]].name), bonematrix)
         worklist.extend(defchildren[bname])
-    print('De-rigified %d bones' % len(worklist))
+    IQMdebug(operator, 'De-rigified %d bones' % len(worklist))
     return bones
 
 
-def collectBones(context, armature, scale):
+def collectBones(operator, context, armature, scale):
     data = armature.data
     bones = {}
     worldmatrix = armature.matrix_world
@@ -709,16 +727,16 @@ def collectBones(context, armature, scale):
         for child in bone.children:
             if child not in worklist:
                 worklist.append(child)
-    print('Collected %d bones' % len(worklist))
+    IQMdebug(operator, 'Collected %d bones' % len(worklist))
     return bones
 
 
-def collectAnim(context, armature, scale, bones, action, startframe = None, endframe = None):
+def collectAnim(operator, context, armature, scale, bones, action, startframe = None, endframe = None):
     if not startframe or not endframe:
         startframe, endframe = action.frame_range
         startframe = int(startframe)
         endframe = int(endframe)
-    print('Exporting action "%s" frames %d-%d' % (action.name, startframe, endframe))
+    IQMdebug(operator, 'Exporting action "%s" frames %d-%d' % (action.name, startframe, endframe))
     scene = context.scene
     worldmatrix = armature.matrix_world
     armature.animation_data.action = action
@@ -749,9 +767,9 @@ def collectAnim(context, armature, scale, bones, action, startframe = None, endf
     return outdata
 
 
-def collectAnims(context, armature, scale, bones, animspecs):
+def collectAnims(operator, context, armature, scale, bones, animspecs):
     if not armature.animation_data:
-        print('Armature has no animation data')
+        IQMwarning(operator, 'Armature has no animation data')
         return []
     actions = bpy.data.actions
     animspecs = [ spec.strip() for spec in animspecs.split(',') ]
@@ -763,7 +781,7 @@ def collectAnims(context, armature, scale, bones, animspecs):
         animspec = [ arg.strip() for arg in animspec.split(':') ]
         animname = animspec[0]
         if animname not in actions:
-            print('Action "%s" not found in current armature' % animname)
+            IQMwarning(operator, 'Action "%s" not found in current armature' % animname)
             continue
         try:
             startframe = int(animspec[1])
@@ -781,14 +799,14 @@ def collectAnims(context, armature, scale, bones, animspecs):
             flags = int(animspec[4])
         except:
             flags = 0
-        framedata = collectAnim(context, armature, scale, bones, actions[animname], startframe, endframe)
+        framedata = collectAnim(operator, context, armature, scale, bones, actions[animname], startframe, endframe)
         anims.append(Animation(animname, framedata, fps, flags))
     armature.animation_data.action = oldaction
     scene.frame_set(oldframe)
     return anims
 
  
-def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False, filetype = 'IQM'):
+def collectMeshes(operator, context, bones, scale, matfun, useskel = True, usecol = False, filetype = 'IQM'):
     vertwarn = []
     objs = context.selected_objects #context.scene.objects
     meshes = []
@@ -834,7 +852,7 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
                     mesh = materials[obj.name, matindex, material] 
                 except:
                     matprefix = (data.materials and data.materials[matindex].name) or ''
-                    mesh = Mesh(obj.name, matfun(matprefix, material), data.vertices)
+                    mesh = Mesh(operator, obj.name, matfun(matprefix, material), data.vertices)
                     meshes.append(mesh)
                     materials[obj.name, matindex, material] = mesh
 
@@ -894,7 +912,7 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
                             except:
                                 if (groups[g.group].name, mesh.name) not in vertwarn:
                                     vertwarn.append((groups[g.group].name, mesh.name))
-                                    print('Vertex depends on non-existent bone: %s in mesh: %s' % (groups[g.group].name, mesh.name))
+                                    IQMwarning(operator, 'Vertex depends on non-existent bone: %s in mesh: %s' % (groups[g.group].name, mesh.name))
 
                     if not face.use_smooth:
                         vertindex = len(verts)
@@ -932,7 +950,7 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
         if filetype == 'IQM':
             mesh.calcTangents()
             mesh.calcNeighbors()
-        print('%s %s: generated %d triangles' % (mesh.name, mesh.material, len(mesh.tris)))
+        IQMdebug(operator, '%s %s: generated %d triangles' % (mesh.name, mesh.material, len(mesh.tris)))
 
     return meshes
 
@@ -994,40 +1012,37 @@ def exportIQE(file, meshes, bones, anims):
 
     file.write('\n')
 
-
-def exportIQM(context, filename, usemesh = True, useskel = True, usebbox = True, usecol = False, scale = 1.0, animspecs = None, matfun = (lambda prefix, image: image), derigify = False):
+def exportIQM(operator, context, filename, usemesh = True, useskel = True, usebbox = True, usecol = False, scale = 1.0, animspecs = None, matfun = (lambda prefix, image: image), derigify = False):
     armature = findArmature(context)
     if useskel and not armature:
-        print('No armature selected')
-        return
+        return IQMerror(operator, 'No armature selected')
 
     if filename.lower().endswith('.iqm'):
         filetype = 'IQM'
     elif filename.lower().endswith('.iqe'):
         filetype = 'IQE'
     else:
-        print('Unknown file type: %s' % filename)
-        return
+        return IQMerror(operator, 'Unknown file type: %s' % filename)
 
     if useskel:
         if derigify:
-            bones = derigifyBones(context, armature, scale)
+            bones = derigifyBones(operator, context, armature, scale)
         else:
-            bones = collectBones(context, armature, scale)
+            bones = collectBones(operator, context, armature, scale)
     else:
         bones = {}
     bonelist = sorted(bones.values(), key = lambda bone: bone.index)
     if usemesh:
-        meshes = collectMeshes(context, bones, scale, matfun, useskel, usecol, filetype)
+        meshes = collectMeshes(operator, context, bones, scale, matfun, useskel, usecol, filetype)
     else:
         meshes = []
     if useskel and animspecs:
-        anims = collectAnims(context, armature, scale, bonelist, animspecs)
+        anims = collectAnims(operator, context, armature, scale, bonelist, animspecs)
     else:
         anims = []
 
     if filetype == 'IQM':
-        iqm = IQMFile()
+        iqm = IQMFile(operator)
         iqm.addMeshes(meshes)
         iqm.addJoints(bonelist)
         iqm.addAnims(anims)
@@ -1040,16 +1055,16 @@ def exportIQM(context, filename, usemesh = True, useskel = True, usebbox = True,
             else:
                 file = open(filename, 'w')
         except:
-            print ('Failed writing to %s' % (filename))
-            return
+            return IQMerror(operator, 'Failed writing to %s' % (filename))
         if filetype == 'IQM':
             iqm.export(file, usebbox)
         elif filetype == 'IQE':
             exportIQE(file, meshes, bonelist, anims)
         file.close()
-        print('Saved %s file to %s' % (filetype, filename))
+        IQMinfo(operator, 'Saved %s file to %s' % (filetype, filename))
     else:
-        print('No %s file was generated' % (filetype))
+        return IQMerror(operator, 'No %s file was generated' % (filetype))
+    return {'FINISHED'}
 
 
 class ExportIQM(bpy.types.Operator, ExportHelper):
@@ -1074,8 +1089,7 @@ class ExportIQM(bpy.types.Operator, ExportHelper):
             matfun = lambda prefix, image: prefix
         else:
             matfun = lambda prefix, image: image
-        exportIQM(context, self.properties.filepath, self.properties.usemesh, self.properties.useskel, self.properties.usebbox, self.properties.usecol, self.properties.usescale, self.properties.animspec, matfun, self.properties.derigify)
-        return {'FINISHED'}
+        return exportIQM(self, context, self.properties.filepath, self.properties.usemesh, self.properties.useskel, self.properties.usebbox, self.properties.usecol, self.properties.usescale, self.properties.animspec, matfun, self.properties.derigify)
 
     def check(self, context):
         filepath = bpy.path.ensure_ext(self.filepath, '.iqm')
