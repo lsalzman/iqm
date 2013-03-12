@@ -2486,7 +2486,15 @@ namespace fbx
             int idx = 2*uvidxs[i];
             etexcoords.add(Vec4(uvs[idx], 1-uvs[idx+1], 0, 0));
         }
-        for(int i = 0; i + 2 < norms.length(); i += 3) enormals.add(Vec3(norms[i], norms[i+1], norms[i+2]));
+
+        if(polyidxs.length() && norms.length() == verts.length()) loopv(polyidxs) 
+        {
+            int idx = polyidxs[i];
+            if(idx < 0) idx = -(idx+1);
+            idx *= 3;
+            enormals.add(Vec3(norms[idx], norms[idx+1], norms[idx+2]));
+        }
+        else for(int i = 0; i + 2 < norms.length(); i += 3) enormals.add(Vec3(norms[i], norms[i+1], norms[i+2]));
     }
 
     void parsemodel()
@@ -2982,7 +2990,7 @@ namespace fbx
 
     bool checkversion(stream *f)
     {
-        return f->getline(p.buf, sizeof(p.buf)) && strstr(p.buf, "FBX 7.2");
+        return f->getline(p.buf, sizeof(p.buf)) && strstr(p.buf, "FBX 7");
     }
 
     void parse(stream *f)
