@@ -949,6 +949,7 @@ void makeneighbors()
     }
 }
 
+Quat erotate(0, 0, 0, 1);
 double escale = 1;
     
 void makemeshes()
@@ -1005,6 +1006,13 @@ void makemeshes()
     if(triangles.length()) makeneighbors();
 
     if(escale != 1) loopv(epositions) epositions[i] *= escale;
+    if(erotate != Quat(0, 0, 0, 1))
+    {
+        loopv(epositions) epositions[i].setxyz(erotate.transform(Vec3(epositions[i])));
+        loopv(enormals) enormals[i] = erotate.transform(enormals[i]);
+        loopv(etangents) etangents[i].setxyz(erotate.transform(Vec3(etangents[i])));
+        loopv(ebitangents) ebitangents[i] = erotate.transform(ebitangents[i]);
+    }
     if(epositions.length()) setupvertexarray<IQM_POSITION>(epositions, IQM_POSITION, IQM_FLOAT, 3);
     if(etexcoords.length()) setupvertexarray<IQM_TEXCOORD>(etexcoords, IQM_TEXCOORD, IQM_FLOAT, 2);
     if(enormals.length()) setupvertexarray<IQM_NORMAL>(enormals, IQM_NORMAL, IQM_FLOAT, 3);
@@ -1094,6 +1102,15 @@ void makerelativebasepose()
 void makeanims()
 {
     if(escale != 1) loopv(eposes) eposes[i].pos *= escale;
+    if(erotate != Quat(0, 0, 0, 1))
+    {
+        for(int i = 0; i < eposes.length(); i += ejoints.length())
+        {
+            transform &p = eposes[i];
+            p.orient = erotate * p.orient;
+            p.pos = erotate.transform(p.pos);
+        }
+    }
     int numbasejoints = eframes.length() ? eframes[0] : eposes.length();
     if(meshes.length() && joints.empty()) 
     {
@@ -1168,6 +1185,7 @@ void resetimporter()
     eanims.setsize(0);
     emeshes.setsize(0);
     evarrays.setsize(0);
+    erotate = Quat(0, 0, 0, 1);
 }
 
 struct filespec
@@ -1293,14 +1311,7 @@ bool loadiqe(const char *filename, const filespec &spec)
                 {
                     t.pos = parseattribs3(c);
                     Vec3 rot = parseattribs3(c);
-                    double cx = cos(rot.x/2), sx = sin(rot.x/2),
-                           cy = cos(rot.y/2), sy = sin(rot.y/2),
-                           cz = cos(rot.z/2), sz = sin(rot.z/2);
-                    t.orient = Quat(sx*cy*cz - cx*sy*sz,
-                                    cx*sy*cz + sx*cy*sz,
-                                    cx*cy*sz - sx*sy*cz,
-                                    cx*cy*cz + sx*sy*sz);
-                    if(t.orient.w > 0) t.orient.flip();
+                    t.orient = Quat::fromangles(rot);
                     t.scale = parseattribs3(c, Vec3(1, 1, 1));
                     eposes.add(t);
                     continue;
@@ -1905,14 +1916,7 @@ void readskeleton(stream *f, char *buf, size_t bufsize)
             eposes.reserve(ejoints.length());
             eposes.advance(ejoints.length());
         }
-        double cx = cos(rot.x/2), sx = sin(rot.x/2),
-               cy = cos(rot.y/2), sy = sin(rot.y/2),
-               cz = cos(rot.z/2), sz = sin(rot.z/2);
-        transform p(pos, Quat(sx*cy*cz - cx*sy*sz,
-                              cx*sy*cz + sx*cy*sz,
-                              cx*cy*sz - sx*sy*cz,
-                              cx*cy*cz + sx*sy*sz));
-        if(p.orient.w > 0) p.orient.flip();
+        transform p(pos, Quat::fromangles(rot));
         eposes[firstpose + bone] = p;
     }
 }
@@ -2019,15 +2023,7 @@ int readframes(stream *f, char *buf, size_t bufsize)
             continue;
         for(; lastbone < bone; lastbone++) eposes[frameoffset + frame*ejoints.length() + lastbone] = eposes[frameoffset + lastbone];
         lastbone++;
-        double cx = cos(rot.x/2), sx = sin(rot.x/2),
-               cy = cos(rot.y/2), sy = sin(rot.y/2),
-               cz = cos(rot.z/2), sz = sin(rot.z/2);
-        transform p(pos,
-                    Quat(sx*cy*cz - cx*sy*sz,
-                         cx*sy*cz + sx*cy*sz,
-                         cx*cy*sz - sx*sy*cz,
-                         cx*cy*cz + sx*sy*sz));
-        if(p.orient.w > 0) p.orient.flip();
+        transform p(pos, Quat::fromangles(rot));
         eposes[frameoffset + frame*ejoints.length() + bone] = p;
     }
     for(; lastbone < ejoints.length(); lastbone++) eposes[frameoffset + frame*ejoints.length() + lastbone] = eposes[frameoffset + lastbone];
@@ -2097,6 +2093,946 @@ bool loadsmd(const char *filename, const filespec &spec)
         a.startframe += spec.startframe;
         makeanims();
     }
+
+    return true;
+}
+
+namespace fbx
+{
+    struct token
+    {
+        enum { NONE, PROP, NUMBER, STRING, ARRAY, BEGIN, END, LINE };
+        int type;
+        union
+        {
+            char s[64];
+            double f;
+            int i;
+        };
+
+        token() : type(NONE) {} 
+    };
+
+    struct tokenizer
+    {
+        stream *f;
+        char *pos;
+        char buf[4096];
+
+        void reset(stream *s) { f = s; pos = buf; buf[0] = '\0'; }
+ 
+        bool parse(token &t)
+        {
+            for(;;)
+            {
+                while(isspace(*pos)) pos++;
+                if(!*pos)
+                {
+                    bool more = f->getline(buf, sizeof(buf));
+                    pos = buf;
+                    if(!more) { buf[0] = '\0'; return false; }
+                    t.type = token::LINE;
+                    return true;
+                }
+                size_t slen = 0;
+                switch(*pos)
+                {
+                    case ',':
+                        pos++;
+                        continue;
+                    case ';':
+                        pos++;
+                        while(*pos) pos++;
+                        continue;
+                    case '{':
+                        pos++;
+                        t.type = token::BEGIN;
+                        return true;
+                    case '}':
+                        pos++;
+                        t.type = token::END;
+                        return true;
+                    case '"':
+                        pos++;
+                        for(; *pos && *pos != '"'; pos++) if(slen < sizeof(t.s)-1) t.s[slen++] = *pos;
+                        t.s[slen] = '\0';
+                        if(*pos == '"') pos++;
+                        t.type = token::STRING;
+                        return true;
+                    case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9': case '.': case '-': case '+':
+                        t.f = strtod(pos, &pos);
+                        t.type = token::NUMBER;
+                        return true;
+                    case '*':
+                        pos++;
+                        t.i = int(strtol(pos, &pos, 10));
+                        t.type = token::ARRAY;
+                        return true;
+                    default:
+                        for(; *pos && !isspace(*pos) && *pos != ':'; pos++) if(slen < sizeof(t.s)-1) t.s[slen++] = *pos;
+                        t.s[slen] = '\0';
+                        if(*pos == ':') pos++;
+                        t.type = token::PROP;
+                        return true;
+                }
+            }
+            return false;
+        }
+
+
+        bool skipprop()
+        {
+            token t;
+            while(parse(t)) switch(t.type)
+            {
+                case token::LINE:
+                    return true;
+
+                case token::BEGIN:
+                    while(parse(t)) switch(t.type)
+                    {
+                        case token::PROP:
+                            skipprop();
+                            break;
+                        case token::END:
+                            return true;
+                    }
+                    return true;
+
+                case token::END:
+                    return false;
+            }
+            return false;
+        }
+
+        bool findbegin()
+        {
+            token t;
+            while(parse(t)) switch(t.type)
+            {
+                case token::LINE: return false;
+                case token::BEGIN: return true;
+            }
+            return false;
+        }
+
+        template<class T>
+        bool readarray(vector<T> &vals, int size = 0)
+        {
+            if(!findbegin()) return false;
+
+            if(size > 0) vals.reserve(min(size, 1<<16));
+            token t;
+            while(parse(t)) switch(t.type)
+            {
+                case token::NUMBER: if(size <= 0 || vals.length() < size) vals.add(T(t.f)); break;
+                case token::END: return true;
+            }
+            return false;
+        }
+    };
+
+    struct node
+    {
+        enum { GEOM = 0, MODEL, MATERIAL, LIMB, CLUSTER, SKIN, CURVE, XFORM, ANIMLAYER, ANIMSTACK };
+        enum { TRANS = 0, ROT, SCALE };
+        string name;
+
+        virtual int type() = 0;
+        virtual ~node() {}
+
+        virtual void process() {}
+        virtual void finish() {}
+    };
+
+    struct geomnode;
+    struct modelnode;
+    struct materialnode;
+    struct limbnode;
+    struct clusternode;
+    struct skinnode;
+    struct curvenode;
+    struct xformnode;
+    struct animlayernode;
+    struct animstacknode;
+
+    struct geomnode : node
+    {
+        int mesh, firstvert, lastvert, numverts;
+        modelnode *model;
+        vector<int> remap;
+        vector<blendcombo> blends;
+
+        geomnode() : mesh(-1), firstvert(-1), lastvert(-1), numverts(0), model(NULL) {}
+        int type() { return GEOM; } 
+
+        void process();
+        void finish();
+    };
+
+    struct modelnode : node
+    {
+        materialnode *material;
+        Vec3 geomtrans, prerot;
+
+        modelnode() : material(NULL), geomtrans(0, 0, 0), prerot(0, 0, 0) {}
+
+        int type() { return MODEL; }
+    };
+
+    struct materialnode : node
+    {
+        int type() { return MATERIAL; }
+    };
+
+    struct limbnode : node
+    {
+        limbnode *parent;
+        int index;
+        Vec3 trans, rot, prerot, scale;
+        clusternode *cluster;
+
+        limbnode() : parent(NULL), index(-1), trans(0, 0, 0), rot(0, 0, 0), prerot(0, 0, 0), scale(1, 1, 1), cluster(NULL) {}
+
+        int type() { return LIMB; }
+
+        void process()
+        { 
+            if(parent) ejoints[index].parent = parent->index; 
+        }
+
+        void finish();
+    };
+
+    struct clusternode : node
+    {
+        skinnode *skin;
+        limbnode *limb;
+        vector<int> indexes;
+        vector<double> weights, transform, transformlink;
+
+        clusternode() : skin(NULL), limb(NULL) {}
+
+        int type() { return CLUSTER; }
+
+        void process();
+    };
+
+    struct skinnode : node
+    {
+        geomnode *geom;
+
+        int type() { return SKIN; }
+    };
+
+    struct curvenode : node
+    {
+        vector<double> vals;
+
+        int type() { return CURVE; }
+    };
+
+    struct xformnode : node
+    {
+        limbnode *limb;
+        int xform;
+        Vec3 val;
+        curvenode *curves[3];
+
+        xformnode() : limb(NULL), xform(-1), val(0, 0, 0) { curves[0] = curves[1] = curves[2] = NULL; }
+
+        int numframes()
+        {
+            int n = 0;
+            loopi(3) if(curves[i]) { if(!n) n = curves[i]->vals.length(); else if(n != curves[i]->vals.length()) n = -1; }
+            return n;
+        }
+
+        int type() { return XFORM; }
+    };
+
+    struct animlayernode : node
+    {
+        vector<xformnode *> xforms;
+
+        int numframes()
+        {
+            int n = 0;
+            loopv(xforms)
+            {
+                int xn = xforms[i]->numframes();
+                if(xn) { if(!n) n = xn; else if(n != xn) n = -1; }
+            }
+            return n;
+        }
+
+        int type() { return ANIMLAYER; }
+    };
+
+    struct animstacknode : node
+    {
+        vector<animlayernode *> layers;
+        double secs;
+
+        animstacknode() : secs(0) {}
+
+        int numframes()
+        {
+            int n;
+            loopv(layers)
+            {
+                int ln = layers[i]->numframes();
+                if(ln) { if(!n) n = ln; else if(n != ln) n = -1; }
+            }
+            return n;
+        }
+ 
+        int type() { return ANIMSTACK; }
+
+        void process();
+    };
+
+    hashtable<double, node *> nodes;
+    tokenizer p;
+
+    void parsegeometry()
+    {
+        token t;
+        if(!p.parse(t)) return;
+        if(t.type != token::NUMBER) { p.skipprop(); return; }
+        double id = t.f;
+        if(!p.findbegin()) return;
+
+        vector<double> verts, norms, uvs;
+        vector<int> polyidxs, uvidxs;
+        while(p.parse(t)) switch(t.type)
+        {
+            case token::END:
+                goto endgeometry;
+
+            case token::PROP:
+                if(!strcmp(t.s, "Vertices")) p.readarray(verts);
+                else if(!strcmp(t.s, "PolygonVertexIndex")) p.readarray(polyidxs);
+                else if(!strcmp(t.s, "LayerElementNormal"))
+                {
+                    if(p.findbegin())
+                    {
+                        while(p.parse(t)) switch(t.type)
+                        {
+                            case token::PROP:
+                                if(!strcmp(t.s, "Normals")) p.readarray(norms);
+                                else p.skipprop();
+                                break;
+                            case token::END:
+                                goto endnormals;
+                        }
+                    endnormals:;
+                    }
+                }
+                else if(!strcmp(t.s, "LayerElementUV"))
+                {
+                    if(p.findbegin())
+                    {
+                        while(p.parse(t)) switch(t.type)
+                        {
+                            case token::PROP:
+                                if(!strcmp(t.s, "UV")) p.readarray(uvs);
+                                else if(!strcmp(t.s, "UVIndex")) p.readarray(uvidxs);
+                                else p.skipprop();
+                                break;
+                            case token::END:
+                                goto enduvs;
+                        }
+                    enduvs:;
+                    }
+                }
+                else p.skipprop();
+                break;
+        }
+    endgeometry:
+        int poslen = epositions.length();
+        geomnode *n = new geomnode;
+        nodes[id] = n;
+        if(polyidxs.empty()) for(int i = 0; i + 2 < verts.length(); i += 3) epositions.add(Vec4(verts[i], verts[i+1], verts[i+2], 1));
+        else 
+        {
+            loopv(polyidxs)
+            {
+                int idx = polyidxs[i];
+                if(idx < 0) idx = -(idx+1);
+                n->remap.add(idx);
+                idx *= 3;
+                epositions.add(Vec4(verts[idx], verts[idx+1], verts[idx+2], 1));
+            }
+        }
+        loopi(epositions.length() - poslen) eblends.add();
+         
+        emesh m;
+        m.name = getnamekey("");
+        m.material = getnamekey("");
+        m.firsttri = etriangles.length();
+        for(int i = poslen; i + 2 < epositions.length(); i += 3)
+            etriangles.add(etriangle(i+1, i, i+2));
+        emeshes.add(m);
+
+        n->mesh = emeshes.length()-1;
+        n->firstvert = poslen;
+        n->lastvert = epositions.length();
+        n->numverts = verts.length()/3;
+
+        if(uvidxs.empty()) for(int i = 0; i + 1 < uvs.length(); i += 2) etexcoords.add(Vec4(uvs[i], uvs[i+1], 0, 0));
+        else loopv(uvidxs)
+        {
+            int idx = 2*uvidxs[i];
+            etexcoords.add(Vec4(uvs[idx], 1-uvs[idx+1], 0, 0));
+        }
+        for(int i = 0; i + 2 < norms.length(); i += 3) enormals.add(Vec3(norms[i], norms[i+1], norms[i+2]));
+    }
+
+    void parsemodel()
+    {
+        token id, name, type, t;
+        if(!p.parse(id) || !p.parse(name) || !p.parse(type)) return;
+
+        if(id.type != token::NUMBER || type.type != token::STRING || name.type != token::STRING) { p.skipprop(); return; }
+
+        char *str = name.s;
+        if(strstr(str, "Model::") == str) str += strlen("Model::");
+        if(!strcmp(type.s, "Mesh"))
+        {
+            modelnode *n = new modelnode;
+            copystring(n->name, str);
+            nodes[id.f] = n;
+
+            if(!p.findbegin()) return;
+            while(p.parse(t)) switch(t.type)
+            {
+            case token::END: return;
+            case token::PROP:
+                if(!strcmp(t.s, "Properties70"))
+                {
+                    if(!p.findbegin()) return;
+                    while(p.parse(t)) switch(t.type)
+                    {
+                    case token::END: goto endmeshprops;
+                    case token::PROP:
+                        if(!strcmp(t.s, "P"))
+                        {
+                            if(!p.parse(t)) return;
+                            if(t.type == token::STRING)
+                            {
+                                if(!strcmp(t.s, "PreRotation"))
+                                {
+                                    loopi(3) if(!p.parse(t)) return;
+                                    loopi(3) { if(!p.parse(t)) return; if(t.type != token::NUMBER) break; n->prerot[i] = t.f; }
+                                }
+                                else if(!strcmp(t.s, "GeometricTranslation"))
+                                {
+                                    loopi(3) if(!p.parse(t)) return;
+                                    loopi(3) { if(!p.parse(t)) return; if(t.type != token::NUMBER) break; n->geomtrans[i] = t.f; }
+                                }
+                            }
+                        }
+                        p.skipprop();
+                        break;
+                    }
+                endmeshprops:;
+                }
+                p.skipprop();
+                break;                
+            }
+        }
+        else if(!strcmp(type.s, "LimbNode"))
+        {
+            limbnode *n = new limbnode;
+            copystring(n->name, str);
+            n->index = ejoints.length();
+            nodes[id.f] = n;
+
+            ejoint &j = ejoints.add();
+            j.name = getnamekey(str);
+            j.parent = -1;
+            eposes.add(transform(Vec3(0, 0, 0), Quat(0, 0, 0, 1)));
+
+            if(!p.findbegin()) return;            
+            while(p.parse(t)) switch(t.type)
+            { 
+            case token::END: 
+                {
+                    transform &x = eposes[n->index];
+                    x.pos = n->trans;
+                    x.orient = Quat::fromdegrees(n->rot);
+                    x.scale = n->scale;
+                }
+                return;
+            case token::PROP:
+                if(!strcmp(t.s, "Properties70"))
+                {
+                    if(!p.findbegin()) return;
+                    while(p.parse(t)) switch(t.type)
+                    {
+                    case token::END: goto endlimbprops;
+                    case token::PROP:
+                        if(!strcmp(t.s, "P"))
+                        {
+                            if(!p.parse(t)) return;
+                            if(t.type == token::STRING)
+                            {
+                                if(!strcmp(t.s, "PreRotation"))
+                                {
+                                    loopi(3) if(!p.parse(t)) return;
+                                    loopi(3) { if(!p.parse(t)) return; if(t.type != token::NUMBER) break; n->prerot[i] = t.f; }
+                                }
+                                else if(!strcmp(t.s, "Lcl Translation"))
+                                {
+                                    loopi(3) if(!p.parse(t)) return;
+                                    loopi(3) { if(!p.parse(t)) return; if(t.type != token::NUMBER) break; n->trans[i] = t.f; }
+                                }
+                                else if(!strcmp(t.s, "Lcl Rotation"))
+                                {
+                                    loopi(3) if(!p.parse(t)) return;
+                                    loopi(3) { if(!p.parse(t)) return; if(t.type != token::NUMBER) break; n->rot[i] = t.f; }
+                                }
+                                else if(!strcmp(t.s, "Lcl Scaling"))
+                                {
+                                    loopi(3) if(!p.parse(t)) return;
+                                    loopi(3) { if(!p.parse(t)) return; if(t.type != token::NUMBER) break; n->scale[i] = t.f; } 
+                                }
+                            }
+                        }
+                        p.skipprop();
+                        break;
+                    }
+                endlimbprops:;
+                }
+                p.skipprop();
+                break;
+            }
+        } 
+
+        p.skipprop();
+    }
+
+    void parsematerial()
+    {
+        token id, name;
+        if(!p.parse(id) || !p.parse(name)) return;
+
+        if(id.type == token::NUMBER)
+        {
+            if(name.type == token::STRING)
+            {
+                char *str = name.s;
+                if(strstr(str, "Material::") == str) str += strlen("Material::");
+                materialnode *n = new materialnode;
+                copystring(n->name, str);
+                nodes[id.f] = n;
+            }
+        }
+
+        p.skipprop();
+    }
+
+    void parsedeformer()
+    {
+        token id, name, type, t;
+        if(!p.parse(id) || !p.parse(name) || !p.parse(type)) return;
+        if(id.type != token::NUMBER || type.type != token::STRING || name.type != token::STRING)
+        {
+            p.skipprop();
+            return;
+        }
+
+        if(!strcmp(type.s, "Skin"))
+        {
+            skinnode *n = new skinnode;
+            nodes[id.f] = n;
+        }
+        else if(!strcmp(type.s, "Cluster"))
+        {
+            if(!p.findbegin()) return;
+
+            clusternode *n = new clusternode;
+            nodes[id.f] = n;
+            while(p.parse(t)) switch(t.type)
+            {
+                case token::END: return;
+                case token::PROP:
+                    if(!strcmp(t.s, "Indexes")) p.readarray(n->indexes);
+                    else if(!strcmp(t.s, "Weights")) p.readarray(n->weights);
+                    else if(!strcmp(t.s, "Transform")) p.readarray(n->transform);
+                    else if(!strcmp(t.s, "TransformLink")) p.readarray(n->transformlink);
+                    else p.skipprop();
+                    break;
+            }
+            return;
+        }
+        
+        p.skipprop();
+    }
+       
+    void parsecurve()
+    {
+        token id, t;
+        if(!p.parse(id)) return;
+        if(id.type != token::NUMBER) { p.skipprop(); return; }
+        curvenode *n = new curvenode;
+        nodes[id.f] = n;
+        while(p.parse(t)) switch(t.type)
+        {
+            case token::END: return;
+            case token::PROP:
+                if(!strcmp(t.s, "KeyValueFloat")) p.readarray(n->vals);
+                else p.skipprop();
+                break;
+        }
+    }
+
+    void parsexform()
+    {
+        token id, t;
+        if(!p.parse(id)) return;
+        if(id.type != token::NUMBER) { p.skipprop(); return; }
+        if(!p.findbegin()) return;
+        xformnode *n = new xformnode;
+        nodes[id.f] = n;
+        while(p.parse(t)) switch(t.type)
+        {
+            case token::END: return;
+            case token::PROP:
+                if(!strcmp(t.s, "Properties70"))
+                {
+                    if(!p.findbegin()) return;
+                    while(p.parse(t)) switch(t.type)
+                    {
+                    case token::END: goto endprops;
+                    case token::PROP:
+                        if(!strcmp(t.s, "P"))
+                        {
+                            token name, type, val;
+                            if(!p.parse(name) || !p.parse(type) || !p.parse(t) || !p.parse(t)) return;
+                            if(name.type == token::STRING)
+                            {
+                                if(!strcmp(name.s, "d|X")) { if(p.parse(val) && val.type == token::NUMBER) n->val.x = val.f; }
+                                else if(!strcmp(name.s, "d|Y")) { if(p.parse(val) && val.type == token::NUMBER) n->val.y = val.f; }
+                                else if(!strcmp(name.s, "d|Z")) { if(p.parse(val) && val.type == token::NUMBER) n->val.z = val.f; }
+                            } 
+                        }
+                        p.skipprop();
+                        break;
+                    }
+                endprops:;
+                }
+                else p.skipprop();
+                break;
+        }
+    }
+
+    void parseanimlayer()
+    {
+        token id, name;
+        if(!p.parse(id) || !p.parse(name)) return;
+        if(id.type != token::NUMBER || name.type != token::STRING) { p.skipprop(); return; }
+
+        char *str = name.s;
+        if(strstr(str, "AnimLayer::") == str) str += strlen("AnimLayer::");
+        animlayernode *n = new animlayernode;
+        copystring(n->name, str);
+        nodes[id.f] = n;
+
+        p.skipprop();
+    }
+
+    #define FBX_SEC 46186158000.0
+
+    void parseanimstack()
+    {
+        token id, name, t;
+        if(!p.parse(id) || !p.parse(name)) return;
+        if(id.type != token::NUMBER || name.type != token::STRING) { p.skipprop(); return; }
+
+        char *str = name.s;
+        if(strstr(str, "AnimStack::") == str) str += strlen("AnimStack::");
+        animstacknode *n = new animstacknode;
+        copystring(n->name, str);
+        nodes[id.f] = n;
+
+        if(!p.findbegin()) return;
+        while(p.parse(t)) switch(t.type)
+        {
+            case token::END: return;
+            case token::PROP:
+                if(!strcmp(t.s, "Properties70"))
+                {
+                    if(!p.findbegin()) return;
+                    while(p.parse(t)) switch(t.type)
+                    {
+                    case token::END: goto endprops;
+                    case token::PROP:
+                        if(!strcmp(t.s, "P"))
+                        {
+                            token name, type, val;
+                            if(!p.parse(name) || !p.parse(type) || !p.parse(t) || !p.parse(t)) return;
+                            if(name.type == token::STRING)
+                            {
+                                if(!strcmp(name.s, "LocalStop")) { if(p.parse(val) && val.type == token::NUMBER) n->secs = val.f / FBX_SEC; }
+                            }
+                        }
+                        p.skipprop();
+                        break;
+                    }
+                endprops:;
+                }
+                else p.skipprop();
+                break;
+        }
+    }
+
+    void parseobjects()
+    {
+        if(!p.findbegin()) return;
+
+        token t;
+        while(p.parse(t)) switch(t.type)
+        {
+            case token::END:
+                return;
+
+            case token::PROP:
+                if(!strcmp(t.s, "Geometry")) parsegeometry();
+                else if(!strcmp(t.s, "Model")) parsemodel();
+                else if(!strcmp(t.s, "Material")) parsematerial();
+                else if(!strcmp(t.s, "Deformer")) parsedeformer();
+                else if(!strcmp(t.s, "AnimationCurve")) parsecurve();
+                else if(!strcmp(t.s, "AnimationCurveNode")) parsexform();
+                else if(!strcmp(t.s, "AnimationLayer")) parseanimlayer();
+                else if(!strcmp(t.s, "AnimationStack")) parseanimstack();
+                else p.skipprop();
+                break;
+        }
+    }
+
+    void parseconnection()
+    {
+        token type, from, to, prop;
+        if(!p.parse(type) || !p.parse(from) || !p.parse(to)) return;
+        if(type.type == token::STRING && from.type == token::NUMBER && to.type == token::NUMBER)
+        {
+            node *nf = nodes.find(from.f, NULL), *nt = nodes.find(to.f, NULL);
+            if(!strcmp(type.s, "OO") && nf && nt)
+            {
+                if(nf->type() == node::GEOM && nt->type() == node::MODEL)
+                    ((geomnode *)nf)->model = (modelnode *)nt;
+                else if(nf->type() == node::MATERIAL && nt->type() == node::MODEL)
+                    ((modelnode *)nt)->material = (materialnode *)nf;
+                else if(nf->type() == node::LIMB && nt->type() == node::LIMB)
+                    ((limbnode *)nf)->parent = (limbnode *)nt;
+                else if(nf->type() == node::CLUSTER && nt->type() == node::SKIN)
+                    ((clusternode *)nf)->skin = (skinnode *)nt;
+                else if(nf->type() == node::SKIN && nt->type() == node::GEOM)
+                    ((skinnode *)nf)->geom = (geomnode *)nt;
+                else if(nf->type() == node::LIMB && nt->type() == node::CLUSTER)
+                {
+                    ((clusternode *)nt)->limb = (limbnode *)nf;
+                    ((limbnode *)nf)->cluster = (clusternode *)nt;
+                }
+                else if(nf->type() == node::ANIMLAYER && nt->type() == node::ANIMSTACK)
+                    ((animstacknode *)nt)->layers.add((animlayernode *)nf);
+                else if(nf->type() == node::XFORM && nt->type() == node::ANIMLAYER)
+                    ((animlayernode *)nt)->xforms.add((xformnode *)nf);
+            }
+            else if(!strcmp(type.s, "OP") && nf && nt && p.parse(prop) && prop.type == token::STRING)
+            {
+                if(nf->type() == node::CURVE && nt->type() == node::XFORM)
+                {
+                    if(!strcmp(prop.s, "d|X")) ((xformnode *)nt)->curves[0] = (curvenode *)nf;
+                    else if(!strcmp(prop.s, "d|Y")) ((xformnode *)nt)->curves[1] = (curvenode *)nf;
+                    else if(!strcmp(prop.s, "d|Z")) ((xformnode *)nt)->curves[2] = (curvenode *)nf;
+                }
+                else if(nf->type() == node::XFORM && nt->type() == node::LIMB)
+                {
+                    ((xformnode *)nf)->limb = (limbnode *)nt;
+                    if(!strcmp(prop.s, "Lcl Translation")) ((xformnode *)nf)->xform = xformnode::TRANS;
+                    else if(!strcmp(prop.s, "Lcl Rotation")) ((xformnode *)nf)->xform = xformnode::ROT;
+                    else if(!strcmp(prop.s, "Lcl Scaling")) ((xformnode *)nf)->xform = xformnode::SCALE; 
+                }
+            }
+        } 
+        p.skipprop();
+    }
+
+    void parseconnections()
+    {
+        if(!p.findbegin()) return;
+
+        token t;
+        while(p.parse(t)) switch(t.type)
+        {
+            case token::END:
+                return;
+
+            case token::PROP:
+                if(!strcmp(t.s, "C")) parseconnection();
+                else p.skipprop();
+                break;
+        }
+    }
+
+    void geomnode::process()
+    {
+        if(model)
+        {
+            emeshes[mesh].name = getnamekey(model->name);
+            if(model->material) emeshes[mesh].material = getnamekey(model->material->name);
+            if(model->geomtrans != Vec3(0, 0, 0)) for(int i = firstvert; i < lastvert; i++) epositions[i] += model->geomtrans;
+            if(model->prerot != Vec3(0, 0, 0))
+            {
+                Quat prequat = Quat::fromdegrees(model->prerot);
+                for(int i = firstvert; i < lastvert; i++) 
+                {
+                    epositions[i].setxyz(prequat.transform(Vec3(epositions[i])));
+                    enormals[i] = prequat.transform(enormals[i]);
+                }
+            }
+        }
+    }
+
+    void clusternode::process()
+    {
+        if(!limb || limb->index > 255 || !skin || !skin->geom || indexes.length() != weights.length()) return;
+        geomnode *g = skin->geom;
+        if(g->blends.empty()) loopi(g->numverts) g->blends.add();
+        loopv(indexes)
+        {
+            int idx = indexes[i];
+            double weight = weights[i];
+            g->blends[idx].addweight(weight, limb->index);
+        }
+    }
+
+    void animstacknode::process()
+    {
+        if(layers.empty()) return;
+        animlayernode *l = layers[0];
+        int numframes = l->numframes();
+        if(numframes < 0) return;
+
+        eanim &a = eanims.add();
+        a.name = getnamekey(name);
+        a.startframe = eframes.length();
+        a.fps = secs > 0 ? numframes/secs : 0;         
+
+        transform *poses = eposes.reserve(numframes*ejoints.length());
+        loopj(numframes) 
+        {
+            eframes.add(eposes.length());
+            eposes.put(eposes.getbuf(), ejoints.length());
+        }
+        loopv(l->xforms)
+        {
+            xformnode &x = *l->xforms[i];
+            transform *dst = &poses[x.limb->index];
+            loopj(numframes)
+            {
+                Vec3 val = x.val;
+                loopk(3) if(x.curves[k]) val[k] = x.curves[k]->vals[j];
+                switch(x.xform)
+                {
+                case xformnode::TRANS: dst->pos = val; break;
+                case xformnode::ROT: dst->orient = Quat::fromdegrees(val); break;
+                case xformnode::SCALE: dst->scale = val; break;
+                } 
+                dst += ejoints.length();
+            }
+        }
+#if 0
+        loopv(eposes)
+        {
+            transform &t = eposes[i];
+            Matrix3x3 m(t.orient, t.scale);
+            Vec3 mscale(Vec3(m.a.x, m.b.x, m.c.x).magnitude(), Vec3(m.a.y, m.b.y, m.c.y).magnitude(), Vec3(m.a.z, m.b.z, m.c.z).magnitude());
+            if(m.determinant() < 0) mscale = -mscale;
+            m.a /= mscale;
+            m.b /= mscale;
+            m.c /= mscale;
+            Quat morient(m); if(morient.w > 0) morient.flip();
+            t.orient = morient;
+            t.scale = mscale;
+        }
+#endif
+    }
+ 
+    void geomnode::finish()
+    {
+        if(blends.empty()) return;
+
+        loopv(blends) blends[i].finalize();
+        while(eblends.length() < lastvert) eblends.add();
+        if(remap.length()) loopv(remap) eblends[firstvert + i] = blends[remap[i]];
+        else loopv(blends) eblends[firstvert + i] = blends[i];
+    }
+
+    void limbnode::finish()
+    {
+        if(prerot == Vec3(0, 0, 0)) return;
+        Quat prequat = Quat::fromdegrees(prerot);
+        for(int i = index; i < eposes.length(); i += ejoints.length())
+            eposes[i].orient = prequat * eposes[i].orient;
+    }
+
+    bool checkversion(stream *f)
+    {
+        return f->getline(p.buf, sizeof(p.buf)) && strstr(p.buf, "FBX 7.2");
+    }
+
+    void parse(stream *f)
+    {
+        p.reset(f);
+        token t;
+        while(p.parse(t)) switch(t.type)
+        {
+            case token::PROP:
+                if(!strcmp(t.s, "Objects")) parseobjects();
+                else if(!strcmp(t.s, "Connections")) parseconnections();
+                else p.skipprop();
+                break;
+        }
+        enumerate(nodes, double, id, node *, n, { (void)id; n->process(); });
+        enumerate(nodes, double, id, node *, n, { (void)id; n->finish(); });
+        enumerate(nodes, double, id, node *, n, { (void)id; delete n; });
+        nodes.clear();
+    }
+}
+
+bool loadfbx(const char *filename, const filespec &spec)
+{
+    stream *f = openfile(filename, "r");
+    if(!f) return false;
+    if(!fbx::checkversion(f)) { delete f; return false; }
+
+    resetimporter();
+
+    fbx::parse(f);
+
+    delete f;
+
+    if(poses.length() && ejoints.length() && poses.length() != ejoints.length()) return false;
+
+    if(eanims.length() == 1)
+    {
+        eanim &a = eanims.last();
+        if(spec.name) a.name = spec.name;
+        if(spec.fps > 0) a.fps = spec.fps;
+        a.flags |= spec.flags;
+        if(spec.endframe >= 0) a.endframe = a.startframe + spec.endframe;
+        a.startframe += spec.startframe;
+    }
+
+    erotate = Quat(M_PI/2, Vec3(1, 0, 0));
+
+    smoothverts();
+    makemeshes();
+    makeanims();
 
     return true;
 }
@@ -2390,6 +3326,11 @@ int main(int argc, char **argv)
         else if(!strcasecmp(type, ".smd"))
         {
             if(loadsmd(infile, inspec)) conoutf("imported: %s", infile);
+            else fatal("failed reading: %s", infile);
+        }
+        else if(!strcasecmp(type, ".fbx"))
+        {
+            if(loadfbx(infile, inspec)) conoutf("imported: %s", infile);
             else fatal("failed reading: %s", infile);
         }
 		else fatal("unknown file type: %s", type);	 

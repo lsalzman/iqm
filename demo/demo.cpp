@@ -122,7 +122,7 @@ bool loadiqmanims(const char *filename, const iqmheader &hdr, uchar *buf)
 
     if(animdata)
     {
-        delete[] animdata;
+        if(animdata != meshdata) delete[] animdata;
         delete[] frames;
         animdata = NULL;
         anims = NULL;

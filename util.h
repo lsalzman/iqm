@@ -260,6 +260,20 @@ static inline bool htcmp(int x, int y)
     return x==y;
 }
 
+static inline bool htcmp(double x, double y)
+{
+    return x == y;
+}
+
+static inline uint hthash(double k)
+{
+    union { double f; uint h[sizeof(double)/sizeof(uint)]; } conv;
+    conv.f = k;
+    uint hash = conv.h[0];
+    for(size_t i = 1; i < sizeof(conv.h)/sizeof(uint); i++) hash ^= conv.h[i];
+    return hash;
+}
+
 template <class K, class T> struct hashtable
 {
     typedef K key;
@@ -333,6 +347,12 @@ template <class K, class T> struct hashtable
     T &access(const L &key, const T &data)
     {
         HTFIND(c->data, insert(key, h)->data = data);
+    }
+
+    template<class L>
+    const T &find(const L &key, const T &notfound)
+    {
+        HTFIND(c->data, notfound);
     }
 
     template<class L>
@@ -775,7 +795,9 @@ struct Vec4
     Vec4 addw(double f) const { return Vec4(x, y, z, w + f); }
 
     Vec4 &operator+=(const Vec4 &o) { x += o.x; y += o.y; z += o.z; w += o.w; return *this; }
+    Vec4 &operator+=(const Vec3 &o) { x += o.x; y += o.y; z += o.z; return * this; }
     Vec4 &operator-=(const Vec4 &o) { x -= o.x; y -= o.y; z -= o.z; w -= o.w; return *this; }
+    Vec4 &operator-=(const Vec3 &o) { x -= o.x; y -= o.y; z -= o.z; return * this; }
     Vec4 &operator+=(double k) { x += k; y += k; z += k; w += k; return *this; }
     Vec4 &operator-=(double k) { x -= k; y -= k; z -= k; w -= k; return *this; }
     Vec4 &operator*=(double k) { x *= k; y *= k; z *= k; w *= k; return *this; }
@@ -790,6 +812,8 @@ struct Vec4
     Vec4 normalize() const { return *this * (1.0 / magnitude()); }
     Vec3 cross3(const Vec4 &o) const { return Vec3(y*o.z-z*o.y, z*o.x-x*o.z, x*o.y-y*o.x); }
     Vec3 cross3(const Vec3 &o) const { return Vec3(y*o.z-z*o.y, z*o.x-x*o.z, x*o.y-y*o.x); }
+
+    void setxyz(const Vec3 &o) { x = o.x; y = o.y; z = o.z; }
 };
 
 inline Vec3::Vec3(const Vec4 &v) : x(v.x), y(v.y), z(v.z) {}
@@ -890,6 +914,21 @@ struct Quat : Vec4
             w = (m.b.x - m.a.y)*inv;
         }
     }
+
+    static Quat fromangles(const Vec3 &rot)
+    {
+        double cx = cos(rot.x/2), sx = sin(rot.x/2),
+               cy = cos(rot.y/2), sy = sin(rot.y/2),
+               cz = cos(rot.z/2), sz = sin(rot.z/2);
+        Quat q(sx*cy*cz - cx*sy*sz,
+               cx*sy*cz + sx*cy*sz,
+               cx*cy*sz - sx*sy*cz,
+               cx*cy*cz + sx*sy*sz);
+        if(q.w > 0) q.flip();
+        return q;
+    }
+
+    static Quat fromdegrees(const Vec3 &rot) { return fromangles(rot * (M_PI / 180)); }
 };
 
 struct Matrix3x3
