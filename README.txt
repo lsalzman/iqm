@@ -1,4 +1,4 @@
-IQM Developer Kit 2012-12-23
+IQM Developer Kit 2013-03-16
 
 *** Format information ***
 
@@ -63,7 +63,7 @@ The included Makefile can be used to build the IQM compiler.
 
 *** IQM upgrader ***
 
-The IQM upgrader is a small little program to convert older versions of IQM files to the most recent version. Ideally you should regenerate the IQM files using the exporters or the compiler, but if necessary, the upgrader will try to generate a new version while manipulating as little of the data as possible.
+The IQM upgrader is a program to convert older versions of IQM files to the most recent version. Ideally you should regenerate the IQM files using the exporters or the compiler, but if necessary, the upgrader will try to generate a new version while manipulating as little of the data as possible.
 
 It is run as follows:
 

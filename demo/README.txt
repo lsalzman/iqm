@@ -1,6 +1,6 @@
 This demo contains sample code for loading the IQM format. It requires GLUT or freeglut to build and run, and should compile on any platform for which they are available with the included Makefile. On Windows, you can just run the pre-built demo.exe and gpu-demo.exe. 
 
-The GPU Skinning demo (gpu-demo) shows an example of how one can animate static meshes stored on the GPU in vertex buffer objects using GLSL shaders.
+The GPU Skinning demo (gpu-demo) shows an example of how one can animate meshes stored on the GPU in vertex buffer objects using GLSL shaders.
 
 The demos are run as follows:
 
