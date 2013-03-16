@@ -19,7 +19,7 @@ extern GLuint loadtexture(const char *name, int clamp);
 // engine you use.
 uchar *meshdata = NULL, *animdata = NULL;
 float *inposition = NULL, *innormal = NULL, *intangent = NULL, *intexcoord = NULL;
-uchar *inblendindex = NULL, *inblendweight = NULL;
+uchar *inblendindex = NULL, *inblendweight = NULL, *incolor = NULL;
 float *outposition = NULL, *outnormal = NULL, *outtangent = NULL, *outbitangent = NULL;
 int nummeshes = 0, numtris = 0, numverts = 0, numjoints = 0, numframes = 0, numanims = 0;
 iqmtriangle *tris = NULL, *adjacency = NULL;
@@ -84,6 +84,7 @@ bool loadiqmmeshes(const char *filename, const iqmheader &hdr, uchar *buf)
         case IQM_TEXCOORD: if(va.format != IQM_FLOAT || va.size != 2) return false; intexcoord = (float *)&buf[va.offset]; lilswap(intexcoord, 2*hdr.num_vertexes); break;
         case IQM_BLENDINDEXES: if(va.format != IQM_UBYTE || va.size != 4) return false; inblendindex = (uchar *)&buf[va.offset]; break;
         case IQM_BLENDWEIGHTS: if(va.format != IQM_UBYTE || va.size != 4) return false; inblendweight = (uchar *)&buf[va.offset]; break;
+        case IQM_COLOR: if(va.format != IQM_UBYTE || va.size != 4) return false; incolor = (uchar *)&buf[va.offset]; break;
         }
     }
     tris = (iqmtriangle *)&buf[hdr.ofs_triangles];
@@ -334,6 +335,13 @@ void renderiqm()
     glEnableClientState(GL_NORMAL_ARRAY);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
+    if(incolor)
+    {
+        glColorPointer(4, GL_UNSIGNED_BYTE, 0, incolor);
+
+        glEnableClientState(GL_COLOR_ARRAY);
+    }
+
     glEnable(GL_TEXTURE_2D);
 
     for(int i = 0; i < nummeshes; i++)
@@ -348,6 +356,8 @@ void renderiqm()
     glDisableClientState(GL_VERTEX_ARRAY);
     glDisableClientState(GL_NORMAL_ARRAY);
     glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+
+    if(incolor) glDisableClientState(GL_COLOR_ARRAY);
 
     glDisable(GL_NORMALIZE);    
     glDisable(GL_LIGHT0);
