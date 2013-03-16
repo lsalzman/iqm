@@ -2403,8 +2403,8 @@ namespace fbx
         double id = t.f;
         if(!p.findbegin()) return;
 
-        vector<double> verts, norms, uvs;
-        vector<int> polyidxs, uvidxs;
+        vector<double> verts, norms, uvs, colors;
+        vector<int> polyidxs, uvidxs, coloridxs;
         while(p.parse(t)) switch(t.type)
         {
             case token::END:
@@ -2444,6 +2444,23 @@ namespace fbx
                                 goto enduvs;
                         }
                     enduvs:;
+                    }
+                }
+                else if(!strcmp(t.s, "LayerElementColor"))
+                {
+                    if(p.findbegin())
+                    {
+                        while(p.parse(t)) switch(t.type)
+                        {
+                            case token::PROP:
+                                if(!strcmp(t.s, "Colors")) p.readarray(colors);
+                                else if(!strcmp(t.s, "ColorIndex")) p.readarray(coloridxs);
+                                else p.skipprop();
+                                break;
+                            case token::END:
+                                goto endcolors;
+                        }
+                    endcolors:;
                     }
                 }
                 else p.skipprop();
@@ -2495,6 +2512,13 @@ namespace fbx
             enormals.add(Vec3(norms[idx], norms[idx+1], norms[idx+2]));
         }
         else for(int i = 0; i + 2 < norms.length(); i += 3) enormals.add(Vec3(norms[i], norms[i+1], norms[i+2]));
+
+        if(coloridxs.empty()) for(int i = 0; i + 3 < colors.length(); i += 4) ecolors.add(Vec4(colors[i], colors[i+1], colors[i+2], colors[i+3]));
+        else loopv(coloridxs)
+        {
+            int idx = 4*coloridxs[i];
+            ecolors.add(Vec4(colors[idx], colors[idx+1], colors[idx+2], colors[idx+3]));
+        }
     }
 
     void parsemodel()
