@@ -2276,9 +2276,9 @@ namespace fbx
     struct modelnode : node
     {
         materialnode *material;
-        Vec3 geomtrans, prerot, lclrot;
+        Vec3 geomtrans, prerot, lclrot, lclscale;
 
-        modelnode() : material(NULL), geomtrans(0, 0, 0), prerot(0, 0, 0), lclrot(0, 0, 0) {}
+        modelnode() : material(NULL), geomtrans(0, 0, 0), prerot(0, 0, 0), lclrot(0, 0, 0), lclscale(1, 1, 1) {}
 
         int type() { return MODEL; }
     };
@@ -2582,6 +2582,11 @@ namespace fbx
                                 {
                                     loopi(3) if(!p.parse(t)) return;
                                     loopi(3) { if(!p.parse(t)) return; if(t.type != token::NUMBER) break; n->lclrot[i] = t.f; }
+                                }
+                                else if(!strcmp(t.s, "Lcl Scaling"))
+                                {
+                                    loopi(3) if(!p.parse(t)) return;
+                                    loopi(3) { if(!p.parse(t)) return; if(t.type != token::NUMBER) break; n->lclscale[i] = t.f; }
                                 }
                             }
                         }
@@ -2937,6 +2942,13 @@ namespace fbx
             emeshes[mesh].name = getnamekey(model->name);
             if(model->material) emeshes[mesh].material = getnamekey(model->material->name);
             if(model->geomtrans != Vec3(0, 0, 0)) for(int i = firstvert; i < lastvert; i++) epositions[i] += model->geomtrans;
+            if(model->lclscale != Vec3(1, 1, 1))
+            {
+                for(int i = firstvert; i < lastvert; i++)
+                {
+                    epositions[i].setxyz(model->lclscale * Vec3(epositions[i]));
+                }
+            }
             if(model->lclrot != Vec3(0, 0, 0))
             {
                 Quat lclquat = Quat::fromdegrees(model->lclrot);
