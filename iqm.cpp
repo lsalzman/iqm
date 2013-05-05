@@ -2963,6 +2963,7 @@ namespace fbx
         loopv(l->xforms)
         {
             xformnode &x = *l->xforms[i];
+            if(!x.limb) continue;
             transform *dst = &poses[x.limb->index];
             loopj(numframes)
             {
