@@ -1479,6 +1479,7 @@ bool loadiqe(const char *filename, const filespec &spec)
         if(spec.fps > 0) a.fps = spec.fps;
         a.flags |= spec.flags;
         if(spec.endframe >= 0) a.endframe = a.startframe + spec.endframe;
+        else if(spec.endframe < -1) a.endframe = a.startframe + max(eframes.length() - a.startframe + spec.endframe + 1, 0);
         a.startframe += spec.startframe;
     }
 
@@ -1802,6 +1803,7 @@ bool loadmd5anim(const char *filename, const filespec &spec)
     a.fps = spec.fps > 0 ? spec.fps : framerate;
     a.flags = spec.flags;
     if(spec.endframe >= 0) a.endframe = a.startframe + spec.endframe;
+    else if(spec.endframe < -1) a.endframe = a.startframe + max(eframes.length() - a.startframe + spec.endframe + 1, 0);
     a.startframe += spec.startframe;
 
     makeanims();
@@ -2090,6 +2092,7 @@ bool loadsmd(const char *filename, const filespec &spec)
         a.fps = spec.fps;
         a.flags = spec.flags;
         if(spec.endframe >= 0) a.endframe = a.startframe + spec.endframe;
+        else if(spec.endframe < -1) a.endframe = a.startframe + max(eframes.length() - a.startframe + spec.endframe + 1, 0);
         a.startframe += spec.startframe;
         makeanims();
     }
@@ -2330,6 +2333,12 @@ namespace fbx
         vector<double> vals;
 
         int type() { return CURVE; }
+
+        bool varies() const
+        {
+            loopv(vals) if(vals[i] != vals[0]) return true;
+            return false;
+        }
     };
 
     struct xformnode : node
@@ -2340,6 +2349,12 @@ namespace fbx
         curvenode *curves[3];
 
         xformnode() : limb(NULL), xform(-1), val(0, 0, 0) { curves[0] = curves[1] = curves[2] = NULL; }
+
+        void setcurve(int i, curvenode *c)
+        {
+            if(c->varies()) curves[i] = c;
+            else if(c->vals.length()) val[i] = c->vals[0];
+        }
 
         int numframes()
         {
@@ -2877,9 +2892,9 @@ namespace fbx
             {
                 if(nf->type() == node::CURVE && nt->type() == node::XFORM)
                 {
-                    if(!strcmp(prop.s, "d|X")) ((xformnode *)nt)->curves[0] = (curvenode *)nf;
-                    else if(!strcmp(prop.s, "d|Y")) ((xformnode *)nt)->curves[1] = (curvenode *)nf;
-                    else if(!strcmp(prop.s, "d|Z")) ((xformnode *)nt)->curves[2] = (curvenode *)nf;
+                    if(!strcmp(prop.s, "d|X")) ((xformnode *)nt)->setcurve(0, (curvenode *)nf);
+                    else if(!strcmp(prop.s, "d|Y")) ((xformnode *)nt)->setcurve(1, (curvenode *)nf);
+                    else if(!strcmp(prop.s, "d|Z")) ((xformnode *)nt)->setcurve(2, (curvenode *)nf);
                 }
                 else if(nf->type() == node::XFORM && nt->type() == node::LIMB)
                 {
@@ -3058,6 +3073,7 @@ bool loadfbx(const char *filename, const filespec &spec)
         if(spec.fps > 0) a.fps = spec.fps;
         a.flags |= spec.flags;
         if(spec.endframe >= 0) a.endframe = a.startframe + spec.endframe;
+        else if(spec.endframe < -1) a.endframe = a.startframe + max(eframes.length() - a.startframe + spec.endframe + 1, 0);
         a.startframe += spec.startframe;
     }
 
@@ -3313,7 +3329,7 @@ int main(int argc, char **argv)
                 else if(!strcasecmp(&argv[i][2], "name")) { if(i + 1 < argc) inspec.name = argv[++i]; }
                 else if(!strcasecmp(&argv[i][2], "loop")) { inspec.flags |= IQM_LOOP; }
                 else if(!strcasecmp(&argv[i][2], "start")) { if(i + 1 < argc) inspec.startframe = max(atoi(argv[++i]), 0); }
-                else if(!strcasecmp(&argv[i][2], "end")) { if(i + 1 < argc) inspec.endframe = max(atoi(argv[++i]), 0); }
+                else if(!strcasecmp(&argv[i][2], "end")) { if(i + 1 < argc) inspec.endframe = atoi(argv[++i]); }
                 else if(!strcasecmp(&argv[i][2], "scale")) { if(i + 1 < argc) escale = clamp(atof(argv[++i]), 1e-8, 1e8); }
             }
             else switch(argv[i][1])
