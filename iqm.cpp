@@ -2276,9 +2276,9 @@ namespace fbx
     struct modelnode : node
     {
         materialnode *material;
-        Vec3 geomtrans, prerot;
+        Vec3 geomtrans, prerot, lclrot;
 
-        modelnode() : material(NULL), geomtrans(0, 0, 0), prerot(0, 0, 0) {}
+        modelnode() : material(NULL), geomtrans(0, 0, 0), prerot(0, 0, 0), lclrot(0, 0, 0) {}
 
         int type() { return MODEL; }
     };
@@ -2577,6 +2577,11 @@ namespace fbx
                                 {
                                     loopi(3) if(!p.parse(t)) return;
                                     loopi(3) { if(!p.parse(t)) return; if(t.type != token::NUMBER) break; n->geomtrans[i] = t.f; }
+                                }
+                                else if(!strcmp(t.s, "Lcl Rotation"))
+                                {
+                                    loopi(3) if(!p.parse(t)) return;
+                                    loopi(3) { if(!p.parse(t)) return; if(t.type != token::NUMBER) break; n->lclrot[i] = t.f; }
                                 }
                             }
                         }
@@ -2932,6 +2937,15 @@ namespace fbx
             emeshes[mesh].name = getnamekey(model->name);
             if(model->material) emeshes[mesh].material = getnamekey(model->material->name);
             if(model->geomtrans != Vec3(0, 0, 0)) for(int i = firstvert; i < lastvert; i++) epositions[i] += model->geomtrans;
+            if(model->lclrot != Vec3(0, 0, 0))
+            {
+                Quat lclquat = Quat::fromdegrees(model->lclrot);
+                for(int i = firstvert; i < lastvert; i++)
+                {
+                    epositions[i].setxyz(lclquat.transform(Vec3(epositions[i])));
+                    enormals[i] = lclquat.transform(enormals[i]);
+                }
+            }
             if(model->prerot != Vec3(0, 0, 0))
             {
                 Quat prequat = Quat::fromdegrees(model->prerot);
