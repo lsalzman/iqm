@@ -1165,8 +1165,15 @@ void makeanims()
     if(mbuf) delete[] mbuf;
 }
 
-void resetimporter()
+void resetimporter(bool reuse = false)
 {
+    if(reuse)
+    {
+        ejoints.setsize(0);
+        evarrays.setsize(0);
+        return;
+    }
+
     epositions.setsize(0);
     etexcoords.setsize(0);
     etangents.setsize(0);
@@ -1210,19 +1217,14 @@ struct filespec
     }
 };
  
-bool loadiqe(const char *filename, const filespec &spec)
+bool parseiqe(stream *f)
 {
-    stream *f = openfile(filename, "r");
-    if(!f) return false;
-
-    resetimporter();
-
     const char *curmesh = getnamekey(""), *curmaterial = getnamekey("");
     bool needmesh = true;
     int fmoffset = 0;
     char buf[512];
-    if(!f->getline(buf, sizeof(buf))) goto error;
-    if(!strchr(buf, '#') || strstr(buf, "# Inter-Quake Export") != strchr(buf, '#')) goto error;
+    if(!f->getline(buf, sizeof(buf))) return false;
+    if(!strchr(buf, '#') || strstr(buf, "# Inter-Quake Export") != strchr(buf, '#')) return false;
     while(f->getline(buf, sizeof(buf)))
     {
         char *c = buf;
@@ -1470,7 +1472,31 @@ bool loadiqe(const char *filename, const filespec &spec)
         }
     }
 
-    delete f;
+    return true;
+}
+
+bool loadiqe(const char *filename, const filespec &spec)
+{
+    int numfiles = 0;
+    while(filename)
+    {   
+        const char *endfile = strchr(filename, ',');
+        const char *file = endfile ? newstring(filename, endfile-filename) : filename;
+        stream *f = openfile(file, "r");
+        if(f)
+        {
+            resetimporter(numfiles > 0); 
+            if(parseiqe(f)) numfiles++;
+            delete f;
+        }
+           
+        if(!endfile) break;
+
+        delete[] file;
+        filename = endfile+1; 
+    } 
+
+    if(!numfiles) return false;
 
     if(eanims.length() == 1)
     {
@@ -1488,10 +1514,6 @@ bool loadiqe(const char *filename, const filespec &spec)
     makeanims();
     
     return true;
-
-error:
-    delete f;
-    return false;
 }
 
 struct md5weight
@@ -3080,15 +3102,30 @@ namespace fbx
 
 bool loadfbx(const char *filename, const filespec &spec)
 {
-    stream *f = openfile(filename, "r");
-    if(!f) return false;
-    if(!fbx::checkversion(f)) { delete f; return false; }
+    int numfiles = 0;
+    while(filename)
+    {
+        const char *endfile = strchr(filename, ',');
+        const char *file = endfile ? newstring(filename, endfile-filename) : filename;
+        stream *f = openfile(file, "r");
+        if(f)
+        {
+            if(fbx::checkversion(f)) 
+            {
+                resetimporter(numfiles > 0);
+                numfiles++;
+                fbx::parse(f);
+            }
+            delete f;
+        }
 
-    resetimporter();
+        if(!endfile) break;
 
-    fbx::parse(f);
+        delete[] file;
+        filename = endfile+1; 
+    } 
 
-    delete f;
+    if(!numfiles) return false;
 
     if(poses.length() && ejoints.length() && poses.length() != ejoints.length()) return false;
 
