@@ -951,6 +951,7 @@ void makeneighbors()
 
 Quat erotate(0, 0, 0, 1);
 double escale = 1;
+Vec3 emeshtrans(0, 0, 0);
     
 void makemeshes()
 {
@@ -1013,6 +1014,7 @@ void makemeshes()
         loopv(etangents) etangents[i].setxyz(erotate.transform(Vec3(etangents[i])));
         loopv(ebitangents) ebitangents[i] = erotate.transform(ebitangents[i]);
     }
+    if(emeshtrans != Vec3(0, 0, 0)) loopv(epositions) epositions[i] += emeshtrans;
     if(epositions.length()) setupvertexarray<IQM_POSITION>(epositions, IQM_POSITION, IQM_FLOAT, 3);
     if(etexcoords.length()) setupvertexarray<IQM_TEXCOORD>(etexcoords, IQM_TEXCOORD, IQM_FLOAT, 2);
     if(enormals.length()) setupvertexarray<IQM_NORMAL>(enormals, IQM_NORMAL, IQM_FLOAT, 3);
@@ -3394,6 +3396,13 @@ int main(int argc, char **argv)
                 else if(!strcasecmp(&argv[i][2], "start")) { if(i + 1 < argc) inspec.startframe = max(atoi(argv[++i]), 0); }
                 else if(!strcasecmp(&argv[i][2], "end")) { if(i + 1 < argc) inspec.endframe = atoi(argv[++i]); }
                 else if(!strcasecmp(&argv[i][2], "scale")) { if(i + 1 < argc) escale = clamp(atof(argv[++i]), 1e-8, 1e8); }
+                else if(!strcasecmp(&argv[i][2], "meshtrans")) 
+                { 
+                    if(i + 1 < argc) switch(sscanf(argv[++i], "%lf , %lf , %lf", &emeshtrans.x, &emeshtrans.y, &emeshtrans.z))
+                    {
+                        case 1: emeshtrans = Vec3(0, 0, emeshtrans.x); break;
+                    }
+                }
             }
             else switch(argv[i][1])
             {
@@ -3414,6 +3423,7 @@ int main(int argc, char **argv)
     else if(infiles.empty()) fatal("no input files specified");
 
     if(escale != 1) printf("scale: %f\n", escale);
+    if(emeshtrans != Vec3(0, 0, 0)) printf("mesh translate: %f, %f, %f\n", emeshtrans.x, emeshtrans.y, emeshtrans.z);
 
     loopv(infiles)
     {

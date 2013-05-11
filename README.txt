@@ -33,12 +33,16 @@ It is run as follows:
 
 ./iqm [options] output.iqm mesh.fbx anim1.fbx ... animN.fbx
 
+For certain formats, IQM and FBX, it is possible to combine multiple mesh files of the exact same vertex layout and skeleton by supplying them as "mesh1.iqm,mesh2.iqm,mesh3.iqm", that is, a comma-separated list of the mesh files (with no spaces) in place of the usual mesh filename.
 
 Options can be any of the following command-line switches:
 
 -s N
 --scale N
   Sets the output scale to N.
+
+--meshtrans X,Y,Z
+  Translates a mesh by X,Y,Z. This does not affect the skeleton.
 
 Each animation file can be preceded by any combination of the following command-line switches:
 
