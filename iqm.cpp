@@ -2210,7 +2210,7 @@ bool loadobj(const char *filename, const filespec &spec)
                         index = &verthash[vkey];
                         *index = epositions.length();
                         epositions.add(Vec4(vkey.attrib[0] < 0 ? Vec3(0, 0, 0) : attrib[0][vkey.attrib[0]].zxy(), 1));
-                        enormals.add(vkey.attrib[2] < 0 ? Vec3(0, 0, 0) : attrib[2][vkey.attrib[2]].zxy());
+                        if(vkey.attrib[2] >= 0) enormals.add(attrib[2][vkey.attrib[2]].zxy());
                         etexcoords.add(vkey.attrib[1] < 0 ? Vec4(0, 0, 0, 0) : Vec4(attrib[1][vkey.attrib[1]].x, 1-attrib[1][vkey.attrib[1]].y, 0, 0));
                     }
                     if(v0 < 0) v0 = *index;
