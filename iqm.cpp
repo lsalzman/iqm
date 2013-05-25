@@ -2146,12 +2146,13 @@ bool loadobj(const char *filename, const filespec &spec)
     if(!f) return false;
 
     resetimporter();
+    esmoothgroups[0].key = 0;
 
     vector<Vec3> attrib[3];
     char buf[512];
     hashtable<objvert, int> verthash;
     string meshname = "";
-    int curmesh = -1;
+    int curmesh = -1, smooth = 0;
 
     while(f->getline(buf, sizeof(buf)))
     {
@@ -2174,6 +2175,21 @@ bool loadobj(const char *filename, const filespec &spec)
                 while(namelen > 0 && isspace(name[namelen-1])) namelen--;
                 copystring(meshname, name, min(namelen+1, sizeof(meshname)));
                 curmesh = -1;
+                break;
+            }
+            case 's':
+            {
+                if(!isspace(c[1])) continue;
+                while(isalpha(*c)) c++;
+                while(isspace(*c)) c++;
+                int key = strtol(c, &c, 10);
+                smooth = -1;
+                loopv(esmoothgroups) if(esmoothgroups[i].key == key) { smooth = i; break; }
+                if(smooth < 0)
+                {
+                    smooth = esmoothgroups.length();
+                    esmoothgroups.add().key = key;
+                }
                 break;
             }
             case 'f':
@@ -2217,10 +2233,7 @@ bool loadobj(const char *filename, const filespec &spec)
                     else if(v1 < 0) v1 = *index;
                     else
                     {
-                        etriangle &t = etriangles.add();
-                        t.vert[0] = *index;
-                        t.vert[1] = v1;
-                        t.vert[2] = v0;
+                        etriangles.add(etriangle(*index, v1, v0, smooth));
                         v1 = *index;
                     }
                 }
