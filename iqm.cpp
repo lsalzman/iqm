@@ -2124,6 +2124,119 @@ bool loadsmd(const char *filename, const filespec &spec)
     return true;
 }
 
+struct objvert { int attrib[3]; objvert() { attrib[0] = attrib[1] = attrib[2] = -1; } };
+static inline uint hthash(const objvert &k) { return k.attrib[0] ^ k.attrib[1] ^ k.attrib[2]; };
+static inline bool htcmp(const objvert &x, const objvert &y) { return x.attrib[0] == y.attrib[0] && x.attrib[1] == y.attrib[1] && x.attrib[2] == y.attrib[2]; }
+
+void parseobjvert(char *s, vector<Vec3> &out)
+{
+    Vec3 &v = out.add(Vec3(0, 0, 0));
+    while(isalpha(*s)) s++;
+    loopi(3)
+    {
+        v[i] = strtod(s, &s);
+        while(isspace(*s)) s++;
+        if(!*s) break;
+    }
+}
+
+bool loadobj(const char *filename, const filespec &spec)
+{
+    stream *f = openfile(filename, "r");
+    if(!f) return false;
+
+    resetimporter();
+
+    vector<Vec3> attrib[3];
+    char buf[512];
+    hashtable<objvert, int> verthash;
+    string meshname = "";
+    int curmesh = -1;
+
+    while(f->getline(buf, sizeof(buf)))
+    {
+        char *c = buf;
+        while(isspace(*c)) c++;
+        switch(*c)
+        {
+            case '#': continue;
+            case 'v':
+                if(isspace(c[1])) parseobjvert(c, attrib[0]);
+                else if(c[1]=='t') parseobjvert(c, attrib[1]);
+                else if(c[1]=='n') parseobjvert(c, attrib[2]);
+                break;
+            case 'g':
+            {
+                while(isalpha(*c)) c++;
+                while(isspace(*c)) c++;
+                char *name = c;
+                size_t namelen = strlen(name);
+                while(namelen > 0 && isspace(name[namelen-1])) namelen--;
+                copystring(meshname, name, min(namelen+1, sizeof(meshname)));
+                curmesh = -1;
+                break;
+            }
+            case 'f':
+            {
+                if(curmesh < 0)
+                {
+                    emesh m;
+                    m.name = getnamekey(meshname);
+                    m.material = getnamekey("");
+                    m.firsttri = etriangles.length();
+                    curmesh = emeshes.length();
+                    emeshes.add(m);
+                    verthash.clear();
+                }
+                int v0 = -1, v1 = -1;
+                while(isalpha(*c)) c++;
+                for(;;)
+                {
+                    while(isspace(*c)) c++;
+                    if(!*c) break;
+                    objvert vkey;
+                    loopi(3)
+                    {
+                        vkey.attrib[i] = strtol(c, &c, 10);
+                        if(vkey.attrib[i] < 0) vkey.attrib[i] = attrib[i].length() + vkey.attrib[i];
+                        else vkey.attrib[i]--;
+                        if(!attrib[i].inrange(vkey.attrib[i])) vkey.attrib[i] = -1;
+                        if(*c!='/') break;
+                        c++;
+                    }
+                    int *index = verthash.access(vkey);
+                    if(!index)
+                    {
+                        index = &verthash[vkey];
+                        *index = epositions.length();
+                        epositions.add(Vec4(vkey.attrib[0] < 0 ? Vec3(0, 0, 0) : attrib[0][vkey.attrib[0]].zxy(), 1));
+                        enormals.add(vkey.attrib[2] < 0 ? Vec3(0, 0, 0) : attrib[2][vkey.attrib[2]].zxy());
+                        etexcoords.add(vkey.attrib[1] < 0 ? Vec4(0, 0, 0, 0) : Vec4(attrib[1][vkey.attrib[1]].x, 1-attrib[1][vkey.attrib[1]].y, 0, 0));
+                    }
+                    if(v0 < 0) v0 = *index;
+                    else if(v1 < 0) v1 = *index;
+                    else
+                    {
+                        etriangle &t = etriangles.add();
+                        t.vert[0] = *index;
+                        t.vert[1] = v1;
+                        t.vert[2] = v0;
+                        v1 = *index;
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    delete f;
+
+    smoothverts();
+    makemeshes();
+
+    return true;
+}
+
 namespace fbx
 {
     struct token
@@ -3453,6 +3566,11 @@ int main(int argc, char **argv)
         else if(!strcasecmp(type, ".fbx"))
         {
             if(loadfbx(infile, inspec)) conoutf("imported: %s", infile);
+            else fatal("failed reading: %s", infile);
+        }
+        else if(!strcasecmp(type, ".obj"))
+        {
+            if(loadobj(infile, inspec)) conoutf("imported: %s", infile);
             else fatal("failed reading: %s", infile);
         }
 		else fatal("unknown file type: %s", type);	 

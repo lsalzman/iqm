@@ -751,6 +751,12 @@ struct Vec3
     Vec3 cross(const Vec3 &o) const { return Vec3(y*o.z-z*o.y, z*o.x-x*o.z, x*o.y-y*o.x); }
     Vec3 reflect(const Vec3 &n) const { return *this - n*2.0*dot(n); }
     Vec3 project(const Vec3 &n) const { return *this - n*dot(n); }
+
+    Vec3 zxy() const { return Vec3(z, x, y); }
+    Vec3 zyx() const { return Vec3(z, y, x); }
+    Vec3 yxz() const { return Vec3(y, x, z); }
+    Vec3 yzx() const { return Vec3(y, z, x); }
+    Vec3 xzy() const { return Vec3(x, z, y); }
 };
 
 static inline bool htcmp(const Vec3 &x, const Vec3 &y)
