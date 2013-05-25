@@ -1652,7 +1652,7 @@ bool loadmd5mesh(const char *filename, const filespec &spec)
     if(!f) return false;
 
     resetimporter();
-    esmoothgroups.add().flags |= esmoothgroup::F_UVSMOOTH;
+    esmoothgroups[0].flags |= esmoothgroup::F_UVSMOOTH;
 
     char buf[512];
     while(f->getline(buf, sizeof(buf)))
