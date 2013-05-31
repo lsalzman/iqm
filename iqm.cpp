@@ -2151,7 +2151,7 @@ bool loadobj(const char *filename, const filespec &spec)
     vector<Vec3> attrib[3];
     char buf[512];
     hashtable<objvert, int> verthash;
-    string meshname = "";
+    string meshname = "", matname = "";
     int curmesh = -1, smooth = 0;
 
     while(f->getline(buf, sizeof(buf)))
@@ -2177,6 +2177,18 @@ bool loadobj(const char *filename, const filespec &spec)
                 curmesh = -1;
                 break;
             }
+            case 'u':
+            {
+                if(!strncmp(c, "usemtl", 6)) continue;
+                while(isalpha(*c)) c++;
+                while(isspace(*c)) c++;
+                char *name = c;
+                size_t namelen = strlen(name);
+                while(namelen > 0 && isspace(name[namelen-1])) namelen--;
+                copystring(matname, name, min(namelen+1, sizeof(matname)));
+                curmesh = -1;
+                break;
+            }
             case 's':
             {
                 if(!isspace(c[1])) continue;
@@ -2198,7 +2210,7 @@ bool loadobj(const char *filename, const filespec &spec)
                 {
                     emesh m;
                     m.name = getnamekey(meshname);
-                    m.material = getnamekey("");
+                    m.material = getnamekey(matname);
                     m.firsttri = etriangles.length();
                     curmesh = emeshes.length();
                     emeshes.add(m);
