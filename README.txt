@@ -46,6 +46,9 @@ Options can be any of the following command-line switches:
 --meshtrans X,Y,Z
   Translates a mesh by X,Y,Z. This does not affect the skeleton.
 
+-j
+  Forces the exporting of joint information in animation files without meshes.
+
 Each animation file can be preceded by any combination of the following command-line switches:
 
 --name A

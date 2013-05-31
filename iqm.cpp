@@ -1101,6 +1101,8 @@ void makerelativebasepose()
     }
 }
 
+bool forcejoints = false;
+
 void makeanims()
 {
     if(escale != 1) loopv(eposes) eposes[i].pos *= escale;
@@ -1114,7 +1116,7 @@ void makeanims()
         }
     }
     int numbasejoints = eframes.length() ? eframes[0] : eposes.length();
-    if(meshes.length() && joints.empty()) 
+    if((forcejoints || meshes.length()) && joints.empty()) 
     {
         mjoints.setsize(0);
         loopv(ejoints)
@@ -3546,6 +3548,9 @@ int main(int argc, char **argv)
             {
             case 's':
                 if(i + 1 < argc) escale = clamp(atof(argv[++i]), 1e-8, 1e8);
+                break;
+            case 'j':
+                forcejoints = true;
                 break;
             }
         }
