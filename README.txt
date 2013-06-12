@@ -1,4 +1,4 @@
-IQM Developer Kit 2013-05-24
+IQM Developer Kit 2013-06-12
 
 *** Format information ***
 
@@ -35,7 +35,7 @@ It is run as follows:
 
 ./iqm [options] output.iqm mesh.obj
 
-For certain formats, IQE and FBX, it is possible to combine multiple mesh files of the exact same vertex layout and skeleton by supplying them as "mesh1.iqe,mesh2.iqe,mesh3.iqe", that is, a comma-separated list of the mesh files (with no spaces) in place of the usual mesh filename.
+For certain formats, IQE, OBJ, and FBX, it is possible to combine multiple mesh files of the exact same vertex layout and skeleton by supplying them as "mesh1.iqe,mesh2.iqe,mesh3.iqe", that is, a comma-separated list of the mesh files (with no spaces) in place of the usual mesh filename.
 
 Options can be any of the following command-line switches:
 

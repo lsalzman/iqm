@@ -1169,13 +1169,14 @@ void makeanims()
     if(mbuf) delete[] mbuf;
 }
 
-void resetimporter(bool reuse = false)
+bool resetimporter(bool reuse = false)
 {
     if(reuse)
     {
         ejoints.setsize(0);
         evarrays.setsize(0);
-        return;
+
+        return false;
     }
 
     epositions.setsize(0);
@@ -1197,6 +1198,8 @@ void resetimporter(bool reuse = false)
     emeshes.setsize(0);
     evarrays.setsize(0);
     erotate = Quat(0, 0, 0, 1);
+
+    return true;
 }
 
 struct filespec
@@ -2142,14 +2145,8 @@ void parseobjvert(char *s, vector<Vec3> &out)
     }
 }
 
-bool loadobj(const char *filename, const filespec &spec)
+bool parseobj(stream *f)
 {
-    stream *f = openfile(filename, "r");
-    if(!f) return false;
-
-    resetimporter();
-    esmoothgroups[0].key = 0;
-
     vector<Vec3> attrib[3];
     char buf[512];
     hashtable<objvert, int> verthash;
@@ -2256,7 +2253,37 @@ bool loadobj(const char *filename, const filespec &spec)
         }
     }
 
-    delete f;
+    return true;
+}
+
+bool loadobj(const char *filename, const filespec &spec)
+{
+    stream *f = openfile(filename, "r");
+    if(!f) return false;
+
+    int numfiles = 0;
+    while(filename)
+    {
+        const char *endfile = strchr(filename, ',');
+        const char *file = endfile ? newstring(filename, endfile-filename) : filename;
+        stream *f = openfile(file, "r");
+        if(f)
+        {
+            if(resetimporter(numfiles > 0))
+            {
+                esmoothgroups[0].key = 0;
+            }
+            if(parseobj(f)) numfiles++;
+            delete f;
+        }
+
+        if(!endfile) break;
+
+        delete[] file;
+        filename = endfile+1;
+    }
+
+    if(!numfiles) return false;
 
     smoothverts();
     makemeshes();
