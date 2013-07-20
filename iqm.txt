@@ -87,6 +87,7 @@ struct triangle
 
 struct adjacency
 {
+    // each value is the index of the adjacent triangle for the Nth edge, where ~0 (= -1) indicates no adjacent triangle
     uint triangle[3];
 };
  
