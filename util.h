@@ -723,6 +723,8 @@ struct Vec3
 
     bool operator==(const Vec3 &o) const { return x == o.x && y == o.y && z == o.z; }
     bool operator!=(const Vec3 &o) const { return x != o.x || y != o.y || z != o.z; }
+    bool operator<(const Vec3 &o) const { return x < o.x || y < o.y || z < o.z; }
+    bool operator>(const Vec3 &o) const { return x > o.x || y > o.y || z > o.z; }
 
     Vec3 operator+(const Vec3 &o) const { return Vec3(x+o.x, y+o.y, z+o.z); }
     Vec3 operator-(const Vec3 &o) const { return Vec3(x-o.x, y-o.y, z-o.z); }
@@ -790,6 +792,8 @@ struct Vec4
 
     bool operator==(const Vec4 &o) const { return x == o.x && y == o.y && z == o.z && w == o.w; }
     bool operator!=(const Vec4 &o) const { return x != o.x || y != o.y || z != o.z || w != o.w; }
+    bool operator<(const Vec4 &o) const { return x < o.x || y < o.y || z < o.z || w < o.w; }
+    bool operator>(const Vec4 &o) const { return x > o.x || y > o.y || z > o.z || w > o.w; }
 
     Vec4 operator+(const Vec4 &o) const { return Vec4(x+o.x, y+o.y, z+o.z, w+o.w); }
     Vec4 operator-(const Vec4 &o) const { return Vec4(x-o.x, y-o.y, z-o.z, w-o.w); }

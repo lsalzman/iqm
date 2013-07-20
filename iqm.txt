@@ -6,7 +6,7 @@
 
 // all data is little endian
 
-struct header
+struct iqmheader
 {
     char magic[16]; // the string "INTERQUAKEMODEL\0", 0 terminated
     uint version; // must be version 2
@@ -23,11 +23,11 @@ struct header
     uint num_comment, ofs_comment;
     uint num_extensions, ofs_extensions; // these are stored as a linked list, not as a contiguous array
 };
-// ofs_* fields are relative to the beginning of the header
+// ofs_* fields are relative to the beginning of the iqmheader struct
 // ofs_* fields must be set to 0 when the particular data is empty
 // ofs_* fields must be aligned to at least 4 byte boundaries
 
-struct mesh
+struct iqmmesh
 {
     uint name;     // unique name for the mesh, if desired
     uint material; // set to a name of a non-unique material or texture
@@ -42,35 +42,35 @@ struct mesh
 // however, it may support other format/size combinations for these types if it desires
 enum // vertex array type
 {
-    POSITION     = 0,  // float, 3
-    TEXCOORD     = 1,  // float, 2
-    NORMAL       = 2,  // float, 3
-    TANGENT      = 3,  // float, 4
-    BLENDINDEXES = 4,  // ubyte, 4
-    BLENDWEIGHTS = 5,  // ubyte, 4
-    COLOR        = 6,  // ubyte, 4
+    IQM_POSITION     = 0,  // float, 3
+    IQM_TEXCOORD     = 1,  // float, 2
+    IQM_NORMAL       = 2,  // float, 3
+    IQM_TANGENT      = 3,  // float, 4
+    IQM_BLENDINDEXES = 4,  // ubyte, 4
+    IQM_BLENDWEIGHTS = 5,  // ubyte, 4
+    IQM_COLOR        = 6,  // ubyte, 4
 
-    // all values up to CUSTOM are reserved for future use
-    // any value >= CUSTOM is interpreted as CUSTOM type
-    // the value then defines an offset into the string table, where offset = value - CUSTOM
+    // all values up to IQM_CUSTOM are reserved for future use
+    // any value >= IQM_CUSTOM is interpreted as CUSTOM type
+    // the value then defines an offset into the string table, where offset = value - IQM_CUSTOM
     // this must be a valid string naming the type
-    CUSTOM       = 0x10
+    IQM_CUSTOM       = 0x10
 };
 
 enum // vertex array format
 {
-    BYTE   = 0,
-    UBYTE  = 1,
-    SHORT  = 2,
-    USHORT = 3,
-    INT    = 4,
-    UINT   = 5,
-    HALF   = 6,
-    FLOAT  = 7,
-    DOUBLE = 8,
+    IQM_BYTE   = 0,
+    IQM_UBYTE  = 1,
+    IQM_SHORT  = 2,
+    IQM_USHORT = 3,
+    IQM_INT    = 4,
+    IQM_UINT   = 5,
+    IQM_HALF   = 6,
+    IQM_FLOAT  = 7,
+    IQM_DOUBLE = 8,
 };
 
-struct vertexarray
+struct iqmvertexarray
 {
     uint type;   // type or custom name
     uint flags;
@@ -80,18 +80,19 @@ struct vertexarray
                  // offset must be aligned to max(sizeof(format), 4)
 };
 
-struct triangle
+struct iqmtriangle
 {
     uint vertex[3];
 };
 
-struct adjacency
+struct iqmadjacency
 {
-    // each value is the index of the adjacent triangle for the Nth edge, where ~0 (= -1) indicates no adjacent triangle
+    // each value is the index of the adjacent triangle for edge 0, 1, and 2, where ~0 (= -1) indicates no adjacent triangle
+    // indexes are relative to the iqmheader.ofs_triangles array and span all meshes, where 0 is the first triangle, 1 is the second, 2 is the third, etc. 
     uint triangle[3];
 };
  
-struct joint
+struct iqmjoint
 {
     uint name;
     int parent; // parent < 0 means this is a root bone
@@ -102,7 +103,7 @@ struct joint
     // output = (input*scale)*rotation + translation
 };
 
-struct pose
+struct iqmpose
 {
     int parent; // parent < 0 means this is a root bone
     uint channelmask; // mask of which 10 channels are present for this joint pose
@@ -115,7 +116,7 @@ struct pose
 
 ushort frames[]; // frames is a big unsigned short array where each group of framechannels components is one frame
 
-struct anim
+struct iqmanim
 {
     uint name;
     uint first_frame, num_frames; 
@@ -123,12 +124,12 @@ struct anim
     uint flags;
 };
 
-enum
+enum // iqmanim flags
 {
-    ANIM_LOOP = 1<<0
+    IQM_LOOP = 1<<0
 };
 
-struct bounds
+struct iqmbounds
 {
     float bbmins[3], bbmaxs[3]; // the minimum and maximum coordinates of the bounding box for this animation frame
     float xyradius, radius; // the circular radius in the X-Y plane, as well as the spherical radius
@@ -137,7 +138,7 @@ struct bounds
 char text[]; // big array of all strings, each individual string being 0 terminated, with the first string always being the empty string "" (i.e. text[0] == 0)
 char comment[];
 
-struct extension
+struct iqmextension
 {
     uint name;
     uint num_data, ofs_data;
@@ -145,7 +146,7 @@ struct extension
 };
 
 // vertex data is not really interleaved, but this just gives examples of standard types of the data arrays
-struct vertex
+struct iqmvertex
 {
     float position[3], texcoord[2], normal[3], tangent[4];
     uchar blendindices[4], blendweights[4], color[4];

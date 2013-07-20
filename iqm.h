@@ -60,6 +60,11 @@ struct iqmtriangle
     unsigned int vertex[3];
 };
 
+struct iqmadjacency
+{
+    unsigned int triangle[3];
+};
+
 struct iqmjointv1
 {
     unsigned int name;

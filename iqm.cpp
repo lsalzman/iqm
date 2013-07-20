@@ -896,10 +896,18 @@ struct neighborkey
     uint e0, e1;
 
     neighborkey() {}
-    neighborkey(uint e0, uint e1) : e0(min(e0, e1)), e1(max(e0, e1)) {}
+    neighborkey(uint i0, uint i1)
+    {
+        if(epositions[i0] < epositions[i1]) { e0 = i0; e1 = i1; } 
+        else { e0 = i1; e1 = i0; }
+    }
 
-    uint hash() const { return e0 + e1; }
-    bool operator==(const neighborkey &n) const { return e0 == n.e0 && e1 == n.e1; }
+    uint hash() const { return hthash(epositions[e0]) + hthash(epositions[e1]); }
+    bool operator==(const neighborkey &n) const 
+    { 
+        return epositions[e0] == epositions[n.e0] && epositions[e1] == epositions[n.e1] &&
+               (eblends.empty() || (eblends[e0] == eblends[n.e0] && eblends[e1] == eblends[n.e1])); 
+    }
 };
 
 static inline uint hthash(const neighborkey &n) { return n.hash(); }
