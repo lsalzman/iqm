@@ -1036,6 +1036,7 @@ def exportIQM(context, filename, usemesh = True, useskel = True, usebbox = True,
         iqm.addJoints(bonelist)
         iqm.addAnims(anims)
         iqm.calcFrameSize()
+        iqm.calcNeighbors()
 
     if filename:
         try:
