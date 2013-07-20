@@ -1,6 +1,6 @@
 __author__ = "Lee Salzman"
 __url__ = ['http://lee.fov120.com/iqm']
-__version__ = "2011-12-18"
+__version__ = "2013-7-20"
 __bpydoc__ = """\
 This script is an exporter to the IQM and IQE file formats.
 """
@@ -10,7 +10,7 @@ This script is an exporter to the IQM and IQE file formats.
 bl_addon_info = {
     "name": "Export Inter-Quake Model (.iqm/.iqe)",
     "author": "Lee Salzman",
-    "version": (2011, 12, 18),
+    "version": (2013, 7, 20),
     "blender": (2, 5, 6),
     "api": 34036,
     "location": "File > Export > Inter-Quake Model",
@@ -104,6 +104,12 @@ class Vertex:
                 self.score += 0.75
         else:
             self.score = -1.0
+
+    def neighborKey(self, other):
+        if self.coord < other.coord:
+            return (self.coord.x, self.coord.y, self.coord.z, other.coord.x, other.coord.y, other.coord.z, tuple(self.weights), tuple(other.weights))
+        else:
+            return (other.coord.x, other.coord.y, other.coord.z, self.coord.x, self.coord.y, self.coord.z, tuple(other.weights), tuple(self.weights))
 
     def __hash__(self):
         return self.index
@@ -216,30 +222,6 @@ class Mesh:
         self.verts = vertschedule
         # print('%s: %d tris scheduled to %d' % (self.name, len(self.tris), len(trischedule)))         
         self.tris = trischedule                 
-
-    def calcNeighbors(self):
-        edges = {}
-        for i, (v0, v1, v2) in enumerate(self.tris):
-            e0 = (min(v0.index, v1.index), max(v0.index, v1.index))
-            e1 = (min(v1.index, v2.index), max(v1.index, v2.index))
-            e2 = (min(v2.index, v0.index), max(v2.index, v0.index))
-            try: edges[e0].append(i) 
-            except: edges[e0] = [i]
-            try: edges[e1].append(i) 
-            except: edges[e1] = [i]
-            try: edges[e2].append(i) 
-            except: edges[e2] = [i]
-        neighbors = []
-        for i, (v0, v1, v2) in enumerate(self.tris):
-            e0 = edges[(min(v0.index, v1.index), max(v0.index, v1.index))]
-            e1 = edges[(min(v1.index, v2.index), max(v1.index, v2.index))]
-            e2 = edges[(min(v2.index, v0.index), max(v2.index, v0.index))]
-            match0 = match1 = match2 = -1
-            if len(e0) == 2: match0 = e0[e0.index(i)^1] 
-            if len(e1) == 2: match1 = e1[e1.index(i)^1]
-            if len(e2) == 2: match2 = e2[e2.index(i)^1]
-            neighbors.append((match0, match1, match2))
-        self.neighbors = neighbors
 
     def meshData(self, iqm):
         return [ iqm.addText(self.name), iqm.addText(self.material), self.firstvert, len(self.verts), self.firsttri, len(self.tris) ]
@@ -519,19 +501,43 @@ class IQMFile:
                 for v in mesh.verts:
                     file.write(struct.pack('<4B', v.weights[0][0], v.weights[1][0], v.weights[2][0], v.weights[3][0]))
 
+    def calcNeighbors(self):
+        edges = {}
+        for mesh in self.meshes:
+            for i, (v0, v1, v2) in enumerate(mesh.tris):
+                e0 = v0.neighborKey(v1)
+                e1 = v1.neighborKey(v2)
+                e2 = v2.neighborKey(v0)
+                tri = mesh.firsttri + i
+                try: edges[e0].append(tri)
+                except: edges[e0] = [tri]
+                try: edges[e1].append(tri)
+                except: edges[e1] = [tri]
+                try: edges[e2].append(tri)
+                except: edges[e2] = [tri]
+        neighbors = []
+        for mesh in self.meshes:
+            for i, (v0, v1, v2) in enumerate(mesh.tris):
+                e0 = edges[v0.neighborKey(v1)]
+                e1 = edges[v1.neighborKey(v2)]
+                e2 = edges[v2.neighborKey(v0)]
+                tri = mesh.firsttri + i
+                match0 = match1 = match2 = -1
+                if len(e0) == 2: match0 = e0[e0.index(tri)^1]
+                if len(e1) == 2: match1 = e1[e1.index(tri)^1]
+                if len(e2) == 2: match2 = e2[e2.index(tri)^1]
+                neighbors.append((match0, match1, match2))
+        self.neighbors = neighbors
+
     def writeTris(self, file):
         for mesh in self.meshes:
             for (v0, v1, v2) in mesh.tris:
                 file.write(struct.pack('<3I', v0.index + mesh.firstvert, v1.index + mesh.firstvert, v2.index + mesh.firstvert)) 
-        for mesh in self.meshes:
-            for (n0, n1, n2) in mesh.neighbors:
-                if n0 >= 0: n0 += mesh.firsttri
-                else: n0 = 0xFFFFFFFF 
-                if n1 >= 0: n1 += mesh.firsttri
-                else: n1 = 0xFFFFFFFF
-                if n2 >= 0: n2 += mesh.firsttri
-                else: n2 = 0xFFFFFFFF
-                file.write(struct.pack('<3I', n0, n1, n2))
+        for (n0, n1, n2) in self.neighbors:
+            if n0 < 0: n0 = 0xFFFFFFFF
+            if n1 < 0: n1 = 0xFFFFFFFF
+            if n2 < 0: n2 = 0xFFFFFFFF
+            file.write(struct.pack('<3I', n0, n1, n2))
 
     def export(self, file, usebbox = True):
         self.filesize = IQM_HEADER.size
@@ -876,7 +882,6 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, filetype = 'IQM
         mesh.optimize()
         if filetype == 'IQM':
             mesh.calcTangents()
-            mesh.calcNeighbors()
         print('%s %s: generated %d triangles' % (mesh.name, mesh.material, len(mesh.tris)))
 
     return meshes
@@ -970,6 +975,7 @@ def exportIQM(context, filename, usemesh = True, useskel = True, usebbox = True,
         iqm.addJoints(bonelist)
         iqm.addAnims(anims)
         iqm.calcFrameSize()
+        iqm.calcNeighbors()
 
     if filename:
         try:
