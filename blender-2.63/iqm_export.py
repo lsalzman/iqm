@@ -3,7 +3,7 @@
 bl_info = {
     "name": "Export Inter-Quake Model (.iqm/.iqe)",
     "author": "Lee Salzman",
-    "version": (2013, 7, 20),
+    "version": (2013, 7, 28),
     "blender": (2, 6, 3),
     "location": "File > Export > Inter-Quake Model",
     "description": "Export to the Inter-Quake Model format (.iqm/.iqe)",
@@ -640,6 +640,13 @@ def findArmature(context):
     for obj in context.selected_objects:
         if obj.type == 'ARMATURE':
             armature = obj
+            break
+    if not armature:
+        for obj in context.selected_objectes:
+            if obj.type == 'MESH':
+                armature = obj.find_armature()
+                if armature:
+                    break
     return armature
 
 
