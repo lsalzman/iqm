@@ -95,7 +95,7 @@ struct blendcombo
     void serialize(uchar *vweights) const
     {
         int total = 0;
-        loopk(4) total += (vweights[k] = uchar(weights[k]*255));
+        loopk(4) total += (vweights[k] = uchar(0.5 + weights[k]*255));
         if(sorted <= 0) return;
         while(total > 255)
         {
@@ -574,19 +574,24 @@ template<class T, class U>
 static inline void putattrib(T &out, const U &val) { out = T(val); }
 
 template<class T, class U>
+static inline void uroundattrib(T &out, const U &val, double scale) { out = T(clamp(0.5 + val*scale, 0.0, scale)); }
+template<class T, class U>
+static inline void sroundattrib(T &out, const U &val, double scale, double low, double high) { double n = val*scale*0.5; out = T(clamp(n < 0 ? ceil(n - 1) : floor(n), low, high)); }
+
+template<class T, class U>
 static inline void scaleattrib(T &out, const U &val) { putattrib(out, val); }
 template<class U>
-static inline void scaleattrib(char &out, const U &val) { out = char(clamp(val*255.0 - 0.5, -128.0, 127.0)); }
+static inline void scaleattrib(char &out, const U &val) { sroundattrib(out, val, 255.0, -128.0, 127.0); }
 template<class U>
-static inline void scaleattrib(short &out, const U &val) { out = short(clamp(val*65535.0 - 0.5, -32768.0, 32767.0)); }
+static inline void scaleattrib(short &out, const U &val) { sroundattrib(out, val, 65535.0, -32768.0, 32767.0); }
 template<class U>
-static inline void scaleattrib(int &out, const U &val) { out = int(clamp(val*4294967295.0 - 0.5, -2147483648.0, 2147483647.0)); }
+static inline void scaleattrib(int &out, const U &val) { sroundattrib(out, val, 4294967295.0, -2147483648.0, 2147483647.0); }
 template<class U>
-static inline void scaleattrib(uchar &out, const U &val) { out = uchar(clamp(val*255.0, 0.0, 255.0)); }
+static inline void scaleattrib(uchar &out, const U &val) { uroundattrib(out, val, 255.0); }
 template<class U>
-static inline void scaleattrib(ushort &out, const U &val) { out = ushort(clamp(val*65535.0, 0.0, 65535.0)); }
+static inline void scaleattrib(ushort &out, const U &val) { uroundattrib(out, val, 65535.0); }
 template<class U>
-static inline void scaleattrib(uint &out, const U &val) { out = uint(clamp(val*4294967295.0, 0.0, 4294967295.0)); }
+static inline void scaleattrib(uint &out, const U &val) { uroundattrib(out, val, 4294967295.0); }
 
 template<int T>
 static inline bool normalizedattrib() { return true; }
@@ -3329,6 +3334,8 @@ bool loadfbx(const char *filename, const filespec &spec)
 int framesize = 0;
 vector<ushort> animdata;
 
+#define QUANTIZE(offset, base, scale) ushort(0.5f + (float(offset) - base) / scale)
+
 void calcanimdata()
 {
     if(frames.length()) loopv(poses)
@@ -3396,7 +3403,7 @@ void calcanimdata()
             for(int l = i; l < frames.length(); l += poses.length())
             {
                 transform &f = frames[l];
-                ushort val = ushort((f.pos[k] - j.offset[k]) / j.scale[k]);
+                ushort val = QUANTIZE(f.pos[k], j.offset[k], j.scale[k]);
                 FLUSHVAL(val);
             }
         }
@@ -3405,7 +3412,7 @@ void calcanimdata()
             for(int l = i; l < frames.length(); l += poses.length())
             {
                 transform &f = frames[l];
-                ushort val = ushort((f.orient[k] - j.offset[3+k]) / j.scale[3+k]);
+                ushort val = QUANTIZE(f.orient[k], j.offset[3+k], j.scale[3+k]);
                 FLUSHVAL(val);
             }
         }
@@ -3414,7 +3421,7 @@ void calcanimdata()
             for(int l = i; l < frames.length(); l += poses.length())
             {
                 transform &f = frames[l];
-                ushort val = ushort((f.scale[k] - j.offset[7+k]) / j.scale[7+k]);
+                ushort val = QUANTIZE(f.scale[k], j.offset[7+k], j.scale[7+k]);
                 FLUSHVAL(val);
             }
         }
@@ -3425,9 +3432,9 @@ void calcanimdata()
     {
         pose &j = poses[i%poses.length()];
         transform &f = frames[i];
-        loopk(3) if(j.flags & (0x01<<k)) animdata.add(ushort((float(f.pos[k]) - j.offset[k]) / j.scale[k]));
-        loopk(4) if(j.flags & (0x08<<k)) animdata.add(ushort((float(f.orient[k]) - j.offset[3+k]) / j.scale[3+k]));
-        loopk(3) if(j.flags & (0x80<<k)) animdata.add(ushort((float(f.scale[k]) - j.offset[7+k]) / j.scale[7+k]));
+        loopk(3) if(j.flags & (0x01<<k)) animdata.add(QUANTIZE(f.pos[k], j.offset[k], j.scale[k]));
+        loopk(4) if(j.flags & (0x08<<k)) animdata.add(QUANTIZE(f.orient[k], j.offset[k], j.scale[k]));
+        loopk(3) if(j.flags & (0x80<<k)) animdata.add(QUANTIZE(f.scale[k], j.offset[k], j.scale[k]));
     }
 #endif
     while(vdata.length()%4) vdata.add(0);

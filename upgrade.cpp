@@ -240,7 +240,7 @@ bool loadiqmanims(const char *infile, uchar *buf)
                 if(p.mask&0x40) 
                 {
                     Quat &q = quats[i*hdr.num_poses + j];
-                    frames.add(ushort((float(q.w) - p.channeloffset[6]) / p.channelscale[6]));
+                    frames.add(ushort(0.5f + (float(q.w) - p.channeloffset[6]) / p.channelscale[6]));
                 }
 
                 if(p1.mask&0x40) frames.add(*src1++);
