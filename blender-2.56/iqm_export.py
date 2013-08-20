@@ -1,6 +1,6 @@
 __author__ = "Lee Salzman"
 __url__ = ['http://lee.fov120.com/iqm']
-__version__ = "2013-7-28"
+__version__ = "2013-8-20"
 __bpydoc__ = """\
 This script is an exporter to the IQM and IQE file formats.
 """
@@ -10,7 +10,7 @@ This script is an exporter to the IQM and IQE file formats.
 bl_addon_info = {
     "name": "Export Inter-Quake Model (.iqm/.iqe)",
     "author": "Lee Salzman",
-    "version": (2013, 7, 28),
+    "version": (2013, 8, 20),
     "blender": (2, 5, 6),
     "api": 34036,
     "location": "File > Export > Inter-Quake Model",

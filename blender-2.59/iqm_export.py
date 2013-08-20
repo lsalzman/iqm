@@ -3,7 +3,7 @@
 bl_info = {
     "name": "Export Inter-Quake Model (.iqm/.iqe)",
     "author": "Lee Salzman",
-    "version": (2013, 7, 28),
+    "version": (2013, 8, 20),
     "blender": (2, 5, 9),
     "api": 38674,
     "location": "File > Export > Inter-Quake Model",
