@@ -642,7 +642,7 @@ def findArmature(context):
             armature = obj
             break
     if not armature:
-        for obj in context.selected_objectes:
+        for obj in context.selected_objects:
             if obj.type == 'MESH':
                 armature = obj.find_armature()
                 if armature:
