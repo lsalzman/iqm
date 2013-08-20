@@ -1035,8 +1035,7 @@ class ExportIQM(bpy.types.Operator, ExportHelper):
 
 
 def menu_func(self, context):
-    default_path = os.path.splitext(bpy.data.filepath)[0] + ".iqm"
-    self.layout.operator(ExportIQM.bl_idname, text="Inter-Quake Model (.iqm, .iqe)").filepath = default_path
+    self.layout.operator(ExportIQM.bl_idname, text="Inter-Quake Model (.iqm, .iqe)")
 
 
 def register():
