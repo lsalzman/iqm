@@ -3433,8 +3433,8 @@ void calcanimdata()
         pose &j = poses[i%poses.length()];
         transform &f = frames[i];
         loopk(3) if(j.flags & (0x01<<k)) animdata.add(QUANTIZE(f.pos[k], j.offset[k], j.scale[k]));
-        loopk(4) if(j.flags & (0x08<<k)) animdata.add(QUANTIZE(f.orient[k], j.offset[k], j.scale[k]));
-        loopk(3) if(j.flags & (0x80<<k)) animdata.add(QUANTIZE(f.scale[k], j.offset[k], j.scale[k]));
+        loopk(4) if(j.flags & (0x08<<k)) animdata.add(QUANTIZE(f.orient[k], j.offset[3+k], j.scale[3+k]));
+        loopk(3) if(j.flags & (0x80<<k)) animdata.add(QUANTIZE(f.scale[k], j.offset[7+k], j.scale[7+k]));
     }
 #endif
     while(vdata.length()%4) vdata.add(0);
