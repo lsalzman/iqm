@@ -3,7 +3,7 @@
 bl_info = {
     "name": "Export Inter-Quake Model (.iqm/.iqe)",
     "author": "Lee Salzman",
-    "version": (2013, 8, 20),
+    "version": (2013, 10, 2),
     "blender": (2, 5, 8),
     "api": 36079,
     "location": "File > Export > Inter-Quake Model",
@@ -672,9 +672,13 @@ def derigifyBones(context, armature, scale):
         splitname = -1
         if not orgbone:
             splitname = name.rfind('.')
-            if splitname >= 0 and name[splitname+1:].isdigit():
-                 orgname = name[:splitname]
-                 orgbone = orgbones.get(orgname)
+            suffix = ''
+            if splitname >= 0 and name[splitname+1:] in [ 'l', 'r', 'L', 'R' ]:
+                suffix = name[splitname:]
+                splitname = name.rfind('.', 0, splitname)
+            if splitname >= 0 and name[splitname+1:splitname+2].isdigit():
+                orgname = name[:splitname] + suffix
+                orgbone = orgbones.get(orgname)
         org2defs[orgname].append(name)
         def2org[name] = orgname
     for defs in org2defs.values():
