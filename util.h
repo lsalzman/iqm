@@ -15,6 +15,13 @@
 #endif
 #define NULL 0
 
+#ifdef _WIN32
+#ifndef M_PI
+#define M_PI 3.1415926535897932384626433832795
+#endif
+#define strcasecmp _stricmp
+#endif
+
 typedef unsigned char uchar;
 typedef unsigned short ushort;
 typedef unsigned int uint;

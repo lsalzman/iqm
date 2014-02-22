@@ -3558,10 +3558,64 @@ bool writeiqm(const char *filename)
     return true;
 }
 
+
+void help(bool exitstatus = EXIT_SUCCESS)
+{
+    fprintf(exitstatus != EXIT_SUCCESS ? stderr : stdout,
+"Usage:\n"
+"\n"
+"./iqm [options] output.iqm mesh.iqe anim1.iqe ... animN.iqe\n"
+"./iqm [options] output.iqm mesh.md5mesh anim1.md5anim ... animN.md5anim\n"
+"./iqm [options] output.iqm mesh.smd anim1.smd ... animN.smd\n"
+"./iqm [options] output.iqm mesh.fbx anim1.fbx ... animN.fbx\n"
+"./iqm [options] output.iqm mesh.obj\n"
+"\n"
+"For certain formats, IQE, OBJ, and FBX, it is possible to combine multiple mesh\n"
+"files of the exact same vertex layout and skeleton by supplying them as\n"
+"\"mesh1.iqe,mesh2.iqe,mesh3.iqe\", that is, a comma-separated list of the mesh\n"
+"files (with no spaces) in place of the usual mesh filename.\n"
+"\n"
+"Options can be any of the following command-line switches:\n"
+"\n"
+"    -s N\n"
+"    --scale N\n"
+"      Sets the output scale to N (float).\n"
+"\n"
+"    --meshtrans Z\n"
+"    --meshtrans X,Y,Z\n"
+"      Translates a mesh by X,Y,Z (floats). This does not affect the skeleton.\n"
+"\n"
+"    -j\n"
+"    --forcejoints\n"
+"      Forces the exporting of joint information in animation files without\n"
+"      meshes.\n"
+"\n"
+"Each animation file can be preceded by any combination of the following command-\n"
+"line switches:\n"
+"\n"
+"    --name A\n"
+"      Sets the name of the animation to A.\n"
+"    --fps N\n"
+"      Sets the FPS of the animation to N (float).\n"
+"    --loop\n"
+"      Sets the loop flag for the animation.\n"
+"    --start N\n"
+"      Sets the first frame of the animation to N (integer).\n"
+"    --end N\n"
+"      Sets the last frame of the animation to N (integer).\n"
+"\n"
+"You can supply either a mesh file, animation files, or both.\n"
+"Note that if an input mesh file is supplied, it must come before the animation\n"
+"files in the file list.\n"
+"The output IQM file will contain the supplied mesh and any supplied animations.\n"
+"If no mesh is provided,the IQM file will simply contain the supplied animations.\n"
+    );
+    exit(exitstatus);
+}
+
 int main(int argc, char **argv)
 {
-    if(argc < 1)
-        return EXIT_FAILURE;
+    if(argc <= 1) help(EXIT_FAILURE);
 
     vector<filespec> infiles;
     filespec inspec;
@@ -3578,8 +3632,10 @@ int main(int argc, char **argv)
                 else if(!strcasecmp(&argv[i][2], "start")) { if(i + 1 < argc) inspec.startframe = max(atoi(argv[++i]), 0); }
                 else if(!strcasecmp(&argv[i][2], "end")) { if(i + 1 < argc) inspec.endframe = atoi(argv[++i]); }
                 else if(!strcasecmp(&argv[i][2], "scale")) { if(i + 1 < argc) escale = clamp(atof(argv[++i]), 1e-8, 1e8); }
-                else if(!strcasecmp(&argv[i][2], "meshtrans")) 
-                { 
+                else if(!strcasecmp(&argv[i][2], "help")) help();
+                else if(!strcasecmp(&argv[i][2], "forcejoints")) forcejoints = true;
+                else if(!strcasecmp(&argv[i][2], "meshtrans"))
+                {
                     if(i + 1 < argc) switch(sscanf(argv[++i], "%lf , %lf , %lf", &emeshtrans.x, &emeshtrans.y, &emeshtrans.z))
                     {
                         case 1: emeshtrans = Vec3(0, 0, emeshtrans.x); break;
@@ -3588,6 +3644,9 @@ int main(int argc, char **argv)
             }
             else switch(argv[i][1])
             {
+            case 'h':
+                help();
+                break;
             case 's':
                 if(i + 1 < argc) escale = clamp(atof(argv[++i]), 1e-8, 1e8);
                 break;
