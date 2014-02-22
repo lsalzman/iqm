@@ -421,7 +421,7 @@ bool writeiqm(const char *outfile)
 
 int main(int argc, char **argv)
 {
-    if(argc < 3) return EXIT_FAILURE;
+    if(argc < 3) fatal("Usage: %s outfile infile", argv[0]);
     const char *outfile = argv[1];
     const char *infile = argv[2];
     if(!loadiqm(infile)) fatal("failed reading: %s", infile);

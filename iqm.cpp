@@ -3558,10 +3558,67 @@ bool writeiqm(const char *filename)
     return true;
 }
 
+
+void help()
+{
+    const char *help = R"(Usage:
+
+./iqm [options] output.iqm mesh.iqe anim1.iqe ... animN.iqe
+./iqm [options] output.iqm mesh.md5mesh anim1.md5anim ... animN.md5anim
+./iqm [options] output.iqm mesh.smd anim1.smd ... animN.smd
+./iqm [options] output.iqm mesh.fbx anim1.fbx ... animN.fbx
+./iqm [options] output.iqm mesh.obj
+
+For certain formats, IQE, OBJ, and FBX, it is possible to combine multiple mesh
+files of the exact same vertex layout and skeleton by supplying them as
+"mesh1.iqe,mesh2.iqe,mesh3.iqe", that is, a comma-separated list of the mesh
+files (with no spaces) in place of the usual mesh filename.
+
+Options can be any of the following command-line switches:
+
+    -s N
+    --scale N
+      Sets the output scale to N (float).
+
+    --meshtrans Z
+    --meshtrans X,Y,Z
+      Translates a mesh by X,Y,Z (floats). This does not affect the skeleton.
+
+    -j
+    --forcejoints
+      Forces the exporting of joint information in animation files without
+      meshes.
+
+Each animation file can be preceded by any combination of the following command-
+line switches:
+
+    --name A
+      Sets the name of the animation to A.
+    --fps N
+      Sets the FPS of the animation to N (float).
+    --loop
+      Sets the loop flag for the animation.
+    --start N
+      Sets the first frame of the animation to N (integer).
+    --end N
+      Sets the last frame of the animation to N (integer).
+
+You can supply either a mesh file, animation files, or both.
+Note that if an input mesh file is supplied, it must come before the animation
+files in the file list.
+The output IQM file will contain the supplied mesh and any supplied animations.
+If no mesh is provided,the IQM file will simply contain the supplied animations.
+)";
+
+    fatal( "%s", help );
+}
+
 int main(int argc, char **argv)
 {
-    if(argc < 1)
-        return EXIT_FAILURE;
+    if(argc <= 1)
+    {
+        help();
+    }
 
     vector<filespec> infiles;
     filespec inspec;
@@ -3578,8 +3635,10 @@ int main(int argc, char **argv)
                 else if(!strcasecmp(&argv[i][2], "start")) { if(i + 1 < argc) inspec.startframe = max(atoi(argv[++i]), 0); }
                 else if(!strcasecmp(&argv[i][2], "end")) { if(i + 1 < argc) inspec.endframe = atoi(argv[++i]); }
                 else if(!strcasecmp(&argv[i][2], "scale")) { if(i + 1 < argc) escale = clamp(atof(argv[++i]), 1e-8, 1e8); }
-                else if(!strcasecmp(&argv[i][2], "meshtrans")) 
-                { 
+                else if(!strcasecmp(&argv[i][2], "help")) { help(); }
+                else if(!strcasecmp(&argv[i][2], "forcejoints")) { forcejoints = true; }
+                else if(!strcasecmp(&argv[i][2], "meshtrans"))
+                {
                     if(i + 1 < argc) switch(sscanf(argv[++i], "%lf , %lf , %lf", &emeshtrans.x, &emeshtrans.y, &emeshtrans.z))
                     {
                         case 1: emeshtrans = Vec3(0, 0, emeshtrans.x); break;
@@ -3588,6 +3647,9 @@ int main(int argc, char **argv)
             }
             else switch(argv[i][1])
             {
+            case 'h':
+                help();
+                break;
             case 's':
                 if(i + 1 < argc) escale = clamp(atof(argv[++i]), 1e-8, 1e8);
                 break;

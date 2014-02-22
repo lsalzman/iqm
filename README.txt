@@ -41,12 +41,14 @@ Options can be any of the following command-line switches:
 
 -s N
 --scale N
-  Sets the output scale to N.
+  Sets the output scale to N (float).
 
+--meshtrans Z
 --meshtrans X,Y,Z
-  Translates a mesh by X,Y,Z. This does not affect the skeleton.
+  Translates a mesh by X,Y,Z (floats). This does not affect the skeleton.
 
 -j
+--forcejoints
   Forces the exporting of joint information in animation files without meshes.
 
 Each animation file can be preceded by any combination of the following command-line switches:
@@ -54,13 +56,13 @@ Each animation file can be preceded by any combination of the following command-
 --name A
   Sets the name of the animation to A. 
 --fps N
-  Sets the FPS of the animation to N.
+  Sets the FPS of the animation to N (float).
 --loop
   Sets the loop flag for the animation.
 --start N
-  Sets the first frame of the animation to N.
+  Sets the first frame of the animation to N (integer).
 --end N
-  Sets the last frame of the animation to N.
+  Sets the last frame of the animation to N (integer).
 
 You can supply either a mesh file, animation files, or both.
 Note that if an input mesh file is supplied, it must come before the animation files in the file list.

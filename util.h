@@ -15,6 +15,11 @@
 #endif
 #define NULL 0
 
+#ifdef _MSC_VER
+#define M_PI 3.1415926535897932384626433832795
+#define strcasecmp _stricmp
+#endif
+
 typedef unsigned char uchar;
 typedef unsigned short ushort;
 typedef unsigned int uint;
@@ -98,7 +103,7 @@ static inline T min(T a, T b)
 
 // easy safe strings
 
-#define MAXSTRLEN 260
+#define MAXSTRLEN 2048
 typedef char string[MAXSTRLEN];
 
 inline void vformatstring(char *d, const char *fmt, va_list v, int len = MAXSTRLEN) { _vsnprintf(d, len, fmt, v); d[len-1] = 0; }
