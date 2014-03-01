@@ -2716,7 +2716,17 @@ namespace fbx
         n->lastvert = epositions.length();
         n->numverts = verts.length()/3;
 
-        if(uvidxs.empty()) for(int i = 0; i + 1 < uvs.length(); i += 2) etexcoords.add(Vec4(uvs[i], uvs[i+1], 0, 0));
+        if(uvidxs.empty())
+        {
+            if(polyidxs.length() && uvs.length()/2 == verts.length()/3) loopv(polyidxs)
+            {
+                int idx = polyidxs[i];
+                if(idx < 0) idx = -(idx+1);
+                idx *= 2;
+                etexcoords.add(Vec4(uvs[idx], 1-uvs[idx+1], 0, 0));
+            }
+            else for(int i = 0; i + 1 < uvs.length(); i += 2) etexcoords.add(Vec4(uvs[i], 1-uvs[i+1], 0, 0));
+        }
         else loopv(uvidxs)
         {
             int idx = 2*uvidxs[i];
@@ -2732,7 +2742,17 @@ namespace fbx
         }
         else for(int i = 0; i + 2 < norms.length(); i += 3) enormals.add(Vec3(norms[i], norms[i+1], norms[i+2]));
 
-        if(coloridxs.empty()) for(int i = 0; i + 3 < colors.length(); i += 4) ecolors.add(Vec4(colors[i], colors[i+1], colors[i+2], colors[i+3]));
+        if(coloridxs.empty())
+        {
+            if(polyidxs.length() && colors.length()/4 == verts.length()/3) loopv(polyidxs)
+            {
+                int idx = polyidxs[i];
+                if(idx < 0) idx = -(idx+1);
+                idx *= 4;
+                ecolors.add(Vec4(colors[idx], colors[idx+1], colors[idx+2], colors[idx+3]));
+            }
+            else for(int i = 0; i + 3 < colors.length(); i += 4) ecolors.add(Vec4(colors[i], colors[i+1], colors[i+2], colors[i+3]));
+        }
         else loopv(coloridxs)
         {
             int idx = 4*coloridxs[i];
