@@ -1,4 +1,4 @@
-IQM Developer Kit 2013-10-02
+IQM Developer Kit 2014-03-10
 
 *** Format information ***
 
@@ -8,7 +8,7 @@ IQM Developer Kit 2013-10-02
 
 *** Blender export ***
 
-blender-*/iqm_export.py are exporter scripts for their respective versions of Blender. They can either directly export an IQM file (if the output filename has an ".iqm" suffix), or they can export an IQE file (if the output filename has an ".iqe" suffx) for use with the IQM compiler.
+blender-*/iqm_export.py are exporter scripts for their respective versions of Blender, where the highest version script should work with the later versions of Blender. They can either directly export an IQM file (if the output filename has an ".iqm" suffix), or they can export an IQE file (if the output filename has an ".iqe" suffx) for use with the IQM compiler.
 
 The "Meshes" toggle controls whether to export meshes in the IQM.
 The "Skeleton" toggle controls whether to export joints and their associated blend weights in the IQM. This should only be disabled for models that are not animated and intended to be static.
