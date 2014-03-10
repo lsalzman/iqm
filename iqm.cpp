@@ -542,7 +542,7 @@ struct halfdata
     {
         union
         {
-            unsigned long long int i;
+            ullong i;
             double d;
         } conv;
         conv.d = d;
@@ -691,7 +691,7 @@ void setupvertexarray(const vector<T> &attribs, int type, int fmt, int size)
     {
         if(!name[0])
         {
-            defformatstring(customname)("custom%d", va.type-IQM_CUSTOM);
+            defformatstring(customname, "custom%d", va.type-IQM_CUSTOM);
             va.type = IQM_CUSTOM + sharestring(customname);
         }
         else va.type = IQM_CUSTOM + sharestring(name);
