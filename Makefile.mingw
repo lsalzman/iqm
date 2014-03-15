@@ -6,7 +6,7 @@ ifeq (,$(findstring MINGW,$(PLATFORM)))
 CXX=i686-w64-mingw32-g++
 endif
 
-LIBS= -mwindows -static-libgcc -static-libstdc++
+LIBS= -mwindows -static -static-libgcc -static-libstdc++
 IQM_OBJS= \
 	iqm.o
 UPGRADE_OBJS= \

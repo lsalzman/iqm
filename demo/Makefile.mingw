@@ -7,7 +7,7 @@ ifeq (,$(findstring MINGW,$(PLATFORM)))
 CXX=i686-w64-mingw32-g++
 endif
 
-LIBS= -mwindows -static-libgcc -static-libstdc++ -L. -lfreeglut -lopengl32
+LIBS= -mwindows -static -static-libgcc -static-libstdc++ -L. -lfreeglut -lopengl32
 OBJS= \
 	demo.o \
 	texture.o
