@@ -1529,8 +1529,11 @@ bool loadiqe(const char *filename, const filespec &spec)
         a.startframe += spec.startframe;
     }
 
-    smoothverts();
-    makemeshes();
+    if(emeshes.length())
+    {
+        smoothverts();
+        makemeshes();
+    }
     makeanims();
     
     return true;
@@ -3344,8 +3347,11 @@ bool loadfbx(const char *filename, const filespec &spec)
 
     erotate = Quat(M_PI/2, Vec3(1, 0, 0));
 
-    smoothverts();
-    makemeshes();
+    if(emeshes.length())
+    {
+        smoothverts();
+        makemeshes();
+    }
     makeanims();
 
     return true;
