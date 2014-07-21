@@ -1,4 +1,4 @@
-IQM Developer Kit 2014-03-15
+IQM Developer Kit 2014-07-22
 
 *** Format information ***
 
