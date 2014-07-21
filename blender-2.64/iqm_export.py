@@ -15,8 +15,7 @@ bl_info = {
 import os, struct, math
 import mathutils
 import bpy
-from bpy.props import *
-from bpy_extras.io_utils import ExportHelper
+import bpy_extras.io_utils
 
 IQM_POSITION     = 0
 IQM_TEXCOORD     = 1
@@ -1014,7 +1013,7 @@ def exportIQE(file, meshes, bones, anims):
     file.write('\n')
 
 
-def exportIQM(context, filename, usemesh = True, useskel = True, usebbox = True, usecol = False, scale = 1.0, animspecs = None, matfun = (lambda prefix, image: image), derigify = False):
+def exportIQM(context, filename, usemesh = True, useskel = True, usebbox = True, usecol = False, scale = 1.0, animspecs = None, matfun = (lambda prefix, image: image), derigify = False, boneorder = None):
     armature = findArmature(context)
     if useskel and not armature:
         print('No armature selected')
@@ -1035,6 +1034,23 @@ def exportIQM(context, filename, usemesh = True, useskel = True, usebbox = True,
             bones = collectBones(context, armature, scale)
     else:
         bones = {}
+
+    if boneorder:
+        try:
+            f = open(bpy_extras.io_utils.path_reference(boneorder, os.path.dirname(bpy.data.filepath), os.path.dirname(filename)), "r", encoding = "utf-8")
+            names = [line.strip() for line in f.readlines()]
+            f.close()
+            names = [name for name in names if name in [bone.name for bone in bones.values()]]
+            if len(names) != len(bones):
+                print('Bone order (%d) does not match skeleton (%d)' % (len(names), len(bones)))
+                return 
+            print('Reordering bones')
+            for bone in bones.values():
+                bone.index = names.index(bone.name)
+        except:
+            print('Failed opening bone order: %s' % boneorder)
+            return
+
     bonelist = sorted(bones.values(), key = lambda bone: bone.index)
     if usemesh:
         meshes = collectMeshes(context, bones, scale, matfun, useskel, usecol, filetype)
@@ -1072,20 +1088,21 @@ def exportIQM(context, filename, usemesh = True, useskel = True, usebbox = True,
         print('No %s file was generated' % (filetype))
 
 
-class ExportIQM(bpy.types.Operator, ExportHelper):
+class ExportIQM(bpy.types.Operator, bpy_extras.io_utils.ExportHelper):
     '''Export an Inter-Quake Model IQM or IQE file'''
     bl_idname = "export.iqm"
     bl_label = 'Export IQM'
     filename_ext = ".iqm"
-    animspec = StringProperty(name="Animations", description="Animations to export", maxlen=1024, default="")
-    usemesh = BoolProperty(name="Meshes", description="Generate meshes", default=True)
-    useskel = BoolProperty(name="Skeleton", description="Generate skeleton", default=True)
-    usebbox = BoolProperty(name="Bounding boxes", description="Generate bounding boxes", default=True)
-    usecol = BoolProperty(name="Vertex colors", description="Export vertex colors", default=False)
-    usescale = FloatProperty(name="Scale", description="Scale of exported model", default=1.0, min=0.0, step=50, precision=2)
-    #usetrans = FloatVectorProperty(name="Translate", description="Translate position of exported model", step=50, precision=2, size=3)
-    matfmt = EnumProperty(name="Materials", description="Material name format", items=[("m+i-e", "material+image-ext", ""), ("m", "material", ""), ("i", "image", "")], default="m+i-e")
-    derigify = BoolProperty(name="De-rigify", description="Export only deformation bones from rigify", default=False)
+    animspec = bpy.props.StringProperty(name="Animations", description="Animations to export", maxlen=1024, default="")
+    usemesh = bpy.props.BoolProperty(name="Meshes", description="Generate meshes", default=True)
+    useskel = bpy.props.BoolProperty(name="Skeleton", description="Generate skeleton", default=True)
+    usebbox = bpy.props.BoolProperty(name="Bounding boxes", description="Generate bounding boxes", default=True)
+    usecol = bpy.props.BoolProperty(name="Vertex colors", description="Export vertex colors", default=False)
+    usescale = bpy.props.FloatProperty(name="Scale", description="Scale of exported model", default=1.0, min=0.0, step=50, precision=2)
+    #usetrans = bpy.props.FloatVectorProperty(name="Translate", description="Translate position of exported model", step=50, precision=2, size=3)
+    matfmt = bpy.props.EnumProperty(name="Materials", description="Material name format", items=[("m+i-e", "material+image-ext", ""), ("m", "material", ""), ("i", "image", "")], default="m+i-e")
+    derigify = bpy.props.BoolProperty(name="De-rigify", description="Export only deformation bones from rigify", default=False)
+    boneorder = bpy.props.StringProperty(name="Bone order", description="Override ordering of bones", subtype="FILE_NAME", default="")
 
     def execute(self, context):
         if self.properties.matfmt == "m+i-e":
@@ -1094,7 +1111,7 @@ class ExportIQM(bpy.types.Operator, ExportHelper):
             matfun = lambda prefix, image: prefix
         else:
             matfun = lambda prefix, image: image
-        exportIQM(context, self.properties.filepath, self.properties.usemesh, self.properties.useskel, self.properties.usebbox, self.properties.usecol, self.properties.usescale, self.properties.animspec, matfun, self.properties.derigify)
+        exportIQM(context, self.properties.filepath, self.properties.usemesh, self.properties.useskel, self.properties.usebbox, self.properties.usecol, self.properties.usescale, self.properties.animspec, matfun, self.properties.derigify, self.properties.boneorder)
         return {'FINISHED'}
 
     def check(self, context):
