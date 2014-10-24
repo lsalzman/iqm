@@ -2483,9 +2483,9 @@ namespace fbx
     struct modelnode : node
     {
         materialnode *material;
-        Vec3 geomtrans, prerot, lclrot, lclscale;
+        Vec3 geomtrans, prerot, lcltrans, lclrot, lclscale;
 
-        modelnode() : material(NULL), geomtrans(0, 0, 0), prerot(0, 0, 0), lclrot(0, 0, 0), lclscale(1, 1, 1) {}
+        modelnode() : material(NULL), geomtrans(0, 0, 0), prerot(0, 0, 0), lcltrans(0, 0, 0), lclrot(0, 0, 0), lclscale(1, 1, 1) {}
 
         int type() { return MODEL; }
     };
@@ -2804,6 +2804,11 @@ namespace fbx
                                 {
                                     loopi(3) if(!p.parse(t)) return;
                                     loopi(3) { if(!p.parse(t)) return; if(t.type != token::NUMBER) break; n->geomtrans[i] = t.f; }
+                                }
+                                else if(!strcmp(t.s, "Lcl Translation"))
+                                {
+                                    loopi(3) if(!p.parse(t)) return;
+                                    loopi(3) { if(!p.parse(t)) return; if(t.type != token::NUMBER) break; n->lcltrans[i] = t.f; }
                                 }
                                 else if(!strcmp(t.s, "Lcl Rotation"))
                                 {
@@ -3194,6 +3199,7 @@ namespace fbx
                     enormals[i] = prequat.transform(enormals[i]);
                 }
             }
+            if(model->lcltrans != Vec3(0, 0, 0)) for(int i = firstvert; i < lastvert; i++) epositions[i] += model->lcltrans;
         }
     }
 
