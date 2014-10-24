@@ -2446,7 +2446,6 @@ namespace fbx
     {
         enum { GEOM = 0, MODEL, MATERIAL, LIMB, CLUSTER, SKIN, CURVE, XFORM, ANIMLAYER, ANIMSTACK };
         enum { TRANS = 0, ROT, SCALE };
-        string name;
 
         virtual int type() = 0;
         virtual ~node() {}
@@ -2455,6 +2454,13 @@ namespace fbx
         virtual void finish() {}
     };
 
+    struct namednode : node
+    {
+        string name;
+
+        namednode() { name[0] = 0; }
+    };
+   
     struct geomnode;
     struct modelnode;
     struct materialnode;
@@ -2480,7 +2486,7 @@ namespace fbx
         void finish();
     };
 
-    struct modelnode : node
+    struct modelnode : namednode
     {
         materialnode *material;
         Vec3 geomtrans, prerot, lcltrans, lclrot, lclscale;
@@ -2490,12 +2496,12 @@ namespace fbx
         int type() { return MODEL; }
     };
 
-    struct materialnode : node
+    struct materialnode : namednode
     {
         int type() { return MATERIAL; }
     };
 
-    struct limbnode : node
+    struct limbnode : namednode
     {
         limbnode *parent;
         int index;
@@ -2531,6 +2537,8 @@ namespace fbx
     struct skinnode : node
     {
         geomnode *geom;
+
+        skinnode() : geom(NULL) {}
 
         int type() { return SKIN; }
     };
@@ -2573,7 +2581,7 @@ namespace fbx
         int type() { return XFORM; }
     };
 
-    struct animlayernode : node
+    struct animlayernode : namednode
     {
         vector<xformnode *> xforms;
 
@@ -2591,7 +2599,7 @@ namespace fbx
         int type() { return ANIMLAYER; }
     };
 
-    struct animstacknode : node
+    struct animstacknode : namednode
     {
         vector<animlayernode *> layers;
         double secs;
