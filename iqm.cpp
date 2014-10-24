@@ -1119,11 +1119,12 @@ bool forcejoints = false;
 void makeanims()
 {
     if(escale != 1) loopv(eposes) eposes[i].pos *= escale;
-    if(erotate != Quat(0, 0, 0, 1))
+    if(erotate != Quat(0, 0, 0, 1)) loopv(ejoints)
     {
-        for(int i = 0; i < eposes.length(); i += ejoints.length())
+        ejoint &ej = ejoints[i];
+        if(ej.parent < 0) for(int j = i; j < eposes.length(); j += ejoints.length())
         {
-            transform &p = eposes[i];
+            transform &p = eposes[j];
             p.orient = erotate * p.orient;
             p.pos = erotate.transform(p.pos);
         }
