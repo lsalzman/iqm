@@ -948,7 +948,8 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
 
                 # Quake winding is reversed
                 for i in range(2, len(faceverts)):
-                    mesh.tris.append((faceverts[0], faceverts[i], faceverts[i-1])) 
+                    mesh.tris.append((faceverts[0], faceverts[i-1], faceverts[i])) 
+                    #mesh.tris.append((faceverts[0], faceverts[i], faceverts[i-1])) 
  
     for mesh in meshes:
         mesh.optimize()
