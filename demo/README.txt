@@ -24,7 +24,7 @@ Options can be any of the following command-line switches:
 
 *** LICENSE INFO ***
 
-The files "demo.cpp", "gpu-demo.cpp", "iqm.h", "geom.h", "util.h", "scale.h", and "texture.cpp" are licensed as specified by the LICENSE file included with this distribution.
+The demo source code is licensed as specified by the LICENSE file included with this distribution.
 
 For GL/ and freeglut file licenses, please refer to the licenses included within the files. 
 
