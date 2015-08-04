@@ -814,31 +814,31 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
     for obj in objs:
         if obj.type == 'MESH':
             data = obj.to_mesh(context.scene, False, 'PREVIEW')
-            if not data.polygons:
+            if not data.tessfaces:
                 continue
-            data.calc_normals_split();
+            data.calc_normals_split()
             coordmatrix = obj.matrix_world
             normalmatrix = coordmatrix.inverted().transposed()
             if scale != 1.0:
                 coordmatrix = mathutils.Matrix.Scale(scale, 4) * coordmatrix 
             materials = {}
             groups = obj.vertex_groups
-            uvfaces = data.uv_textures.active and data.uv_textures.active.data
+            uvfaces = data.tessface_uv_textures.active and data.tessface_uv_textures.active.data
             colors = None
             alpha = None
             if usecol:
-                if data.vertex_colors.active:
-                    if data.vertex_colors.active.name.startswith('alpha'):
-                        alpha = data.vertex_colors.active.data
+                if data.tessface_vertex_colors.active:
+                    if data.tessface_vertex_colors.active.name.startswith('alpha'):
+                        alpha = data.tessface_vertex_colors.active.data
                     else:
-                        colors = data.vertex_colors.active.data
-                for layer in data.vertex_colors:
+                        colors = data.tessface_vertex_colors.active.data
+                for layer in data.tessface_vertex_colors:
                     if layer.name.startswith('alpha'):
                         if not alpha:
                             alpha = layer.data
                     elif not colors:
                         colors = layer.data
-            for face in data.polygons:
+            for face in data.tessfaces:
                 if len(face.vertices) < 3:
                     continue
                 
@@ -861,14 +861,14 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
                 verts = mesh.verts
                 vertmap = mesh.vertmap
                 faceverts = []
-                for i, loop in enumerate([ data.loops[l] for l in face.loop_indices ]):
-                    v = data.vertices[loop.vertex_index]
+                for i, vindex in enumerate(face.vertices):
+                    v = data.vertices[vindex]
                     vertco = coordmatrix * v.co
 
                     if not face.use_smooth: 
                         vertno = mathutils.Vector(face.normal)
                     else:
-                        vertno = mathutils.Vector(loop.normal)
+                        vertno = mathutils.Vector(data.loops[vindex].normal)
                     vertno = normalmatrix * vertno
                     vertno.normalize()
 
