@@ -3,7 +3,7 @@
 bl_info = {
     "name": "Export Inter-Quake Model (.iqm/.iqe)",
     "author": "Lee Salzman",
-    "version": (2015, 8, 3),
+    "version": (2016, 1, 4),
     "blender": (2, 74, 0),
     "location": "File > Export > Inter-Quake Model",
     "description": "Export to the Inter-Quake Model format (.iqm/.iqe)",
@@ -853,7 +853,10 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
                 try:
                     mesh = materials[obj.name, matindex, material] 
                 except:
-                    matprefix = (data.materials and data.materials[matindex].name) or ''
+                    try:
+                        matprefix = (data.materials and data.materials[matindex].name) or ''
+                    except:
+                        matprefix = ''
                     mesh = Mesh(obj.name, matfun(matprefix, material), data.vertices)
                     meshes.append(mesh)
                     materials[obj.name, matindex, material] = mesh
