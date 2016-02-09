@@ -3,7 +3,7 @@
 bl_info = {
     "name": "Export Inter-Quake Model (.iqm/.iqe)",
     "author": "Lee Salzman",
-    "version": (2016, 1, 4),
+    "version": (2016, 2, 9),
     "blender": (2, 74, 0),
     "location": "File > Export > Inter-Quake Model",
     "description": "Export to the Inter-Quake Model format (.iqm/.iqe)",
@@ -814,7 +814,7 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
     for obj in objs:
         if obj.type == 'MESH':
             data = obj.to_mesh(context.scene, False, 'PREVIEW')
-            if not data.tessfaces:
+            if not data.polygons:
                 continue
             data.calc_normals_split()
             coordmatrix = obj.matrix_world
@@ -823,22 +823,23 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
                 coordmatrix = mathutils.Matrix.Scale(scale, 4) * coordmatrix 
             materials = {}
             groups = obj.vertex_groups
-            uvfaces = data.tessface_uv_textures.active and data.tessface_uv_textures.active.data
+            uvfaces = data.uv_textures.active and data.uv_textures.active.data
+            uvlayer = data.uv_layers.active and data.uv_layers.active.data
             colors = None
             alpha = None
             if usecol:
-                if data.tessface_vertex_colors.active:
-                    if data.tessface_vertex_colors.active.name.startswith('alpha'):
-                        alpha = data.tessface_vertex_colors.active.data
+                if data.vertex_colors.active:
+                    if data.vertex_colors.active.name.startswith('alpha'):
+                        alpha = data.vertex_colors.active.data
                     else:
-                        colors = data.tessface_vertex_colors.active.data
-                for layer in data.tessface_vertex_colors:
+                        colors = data.vertex_colors.active.data
+                for layer in data.vertex_colors:
                     if layer.name.startswith('alpha'):
                         if not alpha:
                             alpha = layer.data
                     elif not colors:
                         colors = layer.data
-            for face in data.tessfaces:
+            for face in data.polygons:
                 if len(face.vertices) < 3:
                     continue
                 
@@ -846,8 +847,6 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
                     continue
 
                 uvface = uvfaces and uvfaces[face.index]
-                facecol = colors and colors[face.index]
-                facealpha = alpha and alpha[face.index]
                 material = os.path.basename(uvface.image.filepath) if uvface and uvface.image else ''
                 matindex = face.material_index
                 try:
@@ -864,46 +863,33 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
                 verts = mesh.verts
                 vertmap = mesh.vertmap
                 faceverts = []
-                for i, vindex in enumerate(face.vertices):
-                    v = data.vertices[vindex]
+                for loopidx in face.loop_indices:
+                    loop = data.loops[loopidx]
+                    v = data.vertices[loop.vertex_index]
                     vertco = coordmatrix * v.co
 
                     if not face.use_smooth: 
                         vertno = mathutils.Vector(face.normal)
                     else:
-                        vertno = mathutils.Vector(data.loops[vindex].normal)
+                        vertno = mathutils.Vector(loop.normal)
                     vertno = normalmatrix * vertno
                     vertno.normalize()
 
                     # flip V axis of texture space
-                    if uvface:
-                        uv = uvface.uv[i]
+                    if uvlayer:
+                        uv = uvlayer[loopidx].uv
                         vertuv = mathutils.Vector((uv[0], 1.0 - uv[1]))
                     else:
                         vertuv = mathutils.Vector((0.0, 0.0))
 
-                    if facecol:
-                        if i == 0:
-                            vertcol = facecol.color1
-                        elif i == 1:
-                            vertcol = facecol.color2
-                        elif i == 2:
-                            vertcol = facecol.color3
-                        else:
-                            vertcol = facecol.color4
+                    if colors:
+                        vertcol = colors[loopidx].color
                         vertcol = (int(round(vertcol[0] * 255.0)), int(round(vertcol[1] * 255.0)), int(round(vertcol[2] * 255.0)), 255)
                     else:
                         vertcol = None
 
-                    if facealpha:
-                        if i == 0:
-                            vertalpha = facealpha.color1
-                        elif i == 1:
-                            vertalpha = facealpha.color2
-                        elif i == 2:
-                            vertalpha = facealpha.color3
-                        else:
-                            vertalpha = facealpha.color4
+                    if alpha:
+                        vertalpha = alpha[loopidx].color
                         if vertcol:
                             vertcol = (vertcol[0], vertcol[1], vertcol[2], int(round(vertalpha[0] * 255.0)))
                         else:                            
