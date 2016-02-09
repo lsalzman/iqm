@@ -809,7 +809,7 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, filetype = 'IQM
                 if len(face.vertices) < 3:
                     continue
                 
-                if all([ data.vertices[i].co == data.vertices[face.vertices[0]] for i in face.vertices[1:] ]):
+                if all([ data.vertices[i].co == data.vertices[face.vertices[0]].co for i in face.vertices[1:] ]):
                     continue
 
                 uvface = uvfaces and uvfaces[face.index]
