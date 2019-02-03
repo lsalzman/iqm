@@ -3,7 +3,7 @@
 bl_info = {
     "name": "Export Inter-Quake Model (.iqm/.iqe)",
     "author": "Lee Salzman",
-    "version": (2016, 2, 9),
+    "version": (2019, 2, 3),
     "blender": (2, 74, 0),
     "location": "File > Export > Inter-Quake Model",
     "description": "Export to the Inter-Quake Model format (.iqm/.iqe)",
@@ -755,7 +755,7 @@ def collectAnim(context, armature, scale, bones, action, startframe = None, endf
             if scale != 1.0:
                 posematrix.translation *= scale
             loc = posematrix.to_translation()
-            quat = posematrix.to_quaternion()
+            quat = posematrix.to_3x3().inverted().transposed().to_quaternion()
             quat.normalize()
             if quat.w > 0:
                 quat.negate()
