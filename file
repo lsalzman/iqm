@@ -627,7 +627,16 @@ struct filestream : stream
     int write(const void *buf, int len) { return fwrite(buf, 1, len, file); }
     int getchar() { return fgetc(file); }
     bool putchar(int c) { return fputc(c, file)!=EOF; }
-    bool getline(char *str, int len) { return fgets(str, len, file)!=NULL; }
+    bool getline(char *str, int len)
+    {
+        bool ret = fgets(str, len, file) != NULL;
+		if (ret)
+		{
+			str[strlen(str) - 1] = '\0';
+		}
+
+		return ret;
+    }
     bool putstring(const char *str) { return fputs(str, file)!=EOF; }
 
     int printf(const char *fmt, ...)
