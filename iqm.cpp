@@ -3,11 +3,14 @@
 struct triangle { uint vert[3]; triangle() {} triangle(uint v0, uint v1, uint v2) { vert[0] = v0; vert[1] = v1; vert[2] = v2; } };
 vector<triangle> triangles, neighbors;
 
-struct mesh { uint name, material; uint firstvert, numverts; uint firsttri, numtris; mesh() : name(0), material(0), firstvert(0), numverts(0), firsttri(0), numtris(0) {} };
+struct mesh { uint name, material; int materialindex; uint firstvert, numverts; uint firsttri, numtris; mesh() : name(0), material(0), materialindex(-1), firstvert(0), numverts(0), firsttri(0), numtris(0) {} };
 vector<mesh> meshes;
 
 struct anim { uint name; uint firstframe, numframes; float fps; uint flags; anim() : name(0), firstframe(0), numframes(0), fps(0), flags(0) {} };
 vector<anim> anims;
+
+struct material { uint diffuse_texture; };
+vector<material> materials;
 
 struct joint { uint name; int parent; float pos[3], orient[4], scale[3]; joint() : name(0), parent(-1) { memset(pos, 0, sizeof(pos)); memset(orient, 0, sizeof(orient)); memset(scale, 0, sizeof(scale)); } };
 vector<joint> joints;
@@ -226,6 +229,14 @@ struct ejoint
 	ejoint() : name(NULL), parent(-1) {}
 };
 
+struct ematerial
+{
+	const char *name;
+	const char *texture_diffuse;
+
+	ematerial() : name(NULL), texture_diffuse(NULL) {}
+};
+
 struct eanim
 {
 	const char *name;
@@ -296,6 +307,7 @@ vector<esmoothgroup> esmoothgroups;
 vector<int> esmoothindexes;
 vector<uchar> esmoothedges;
 vector<ejoint> ejoints;
+vector<ematerial> ematerials;
 vector<transform> eposes;
 vector<Matrix3x4> mjoints;
 vector<int> eframes;
@@ -1009,7 +1021,9 @@ void makemeshes()
 
 		mesh &m = meshes.add();
 		m.name = sharestring(em1.name);
+		/* Cope with material info. */
 		m.material = sharestring(em1.material);
+		m.materialindex = 0; // Locate concrete material.
 		m.firsttri = triangles.length();
 		m.firstvert = vmap.length();
 		maketriangles(tinfo, mmap);
@@ -1210,6 +1224,7 @@ bool resetimporter(bool reuse = false)
 	esmoothgroups.setsize(0);
 	esmoothgroups.add();
 	ejoints.setsize(0);
+	ematerials.setsize(0);
 	eposes.setsize(0);
 	eframes.setsize(0);
 	eanims.setsize(0);
@@ -1446,7 +1461,6 @@ bool parseiqe(stream *f)
 		{
 			curmaterial = getnamekey(trimname(args));
 			if (emeshes.empty() || emeshes.last().material != curmaterial) needmesh = true;
-			//            if(emeshes.length()) parsename(c, emeshes.last().material);
 		}
 		else if (!strncmp(c, "joint", max(int(args - c), 5)))
 		{
@@ -2170,6 +2184,9 @@ void parsemtl(stream *f)
 {
 	char buf[256];
 	string texturename = "";
+	string materialname = "";
+	int curmaterial = -1;
+
 	while (f->getline(buf, sizeof(buf)))
 	{
 		char *c = buf;
@@ -2177,31 +2194,56 @@ void parsemtl(stream *f)
 		switch (*c)
 		{
 		case '#': continue;
-		case 'm':
-			if (memcmp(c, "map_Kd", 6) == 0 && !isspace(c[6])) continue;
+		case 'n':
+		{
+			if (memcmp(c, "newmtl", 6) == 0 && !isspace(c[6])) continue;
 			c += 7;
 			char *name = c;
 			size_t namelen = strlen(name);
 			while (namelen > 0 && isspace(name[namelen - 1])) namelen--;
-			copystring(texturename, name, min(namelen + 1, sizeof(texturename)));
+			copystring(materialname, name, min(namelen + 1, sizeof(materialname)));
+			curmaterial == -1;	
+			break; 
+		}
+		case 'm':
+		{
+			if (memcmp(c, "map_Kd", 6) == 0 && !isspace(c[6])) continue;
+			c += 7;
+			char *value = c;
+			size_t valuelen = strlen(value);
+			while (valuelen > 0 && isspace(value[valuelen - 1])) valuelen--;
+			copystring(texturename, value, min(valuelen + 1, sizeof(texturename)));
 			memcpy(texturename, path(texturename, true), strlen(texturename));
-			break;
+			
+			if (curmaterial < 0)
+			{
+				ematerial &mtl = ematerials.add();
+				mtl.name = getnamekey(materialname);
+				mtl.texture_diffuse = getnamekey(texturename);
+			}
+			break; 
+		}
 		}
 	}
 }
 
 bool loadmtl(const char *filename, const char *mtlname)
 {
-	string mtlpath;
+	string mtlpath = "";
 
 	const char*filepath = parentdir(filename);
-	strcpy(mtlpath, filepath);
-	strcat(mtlpath, "/");
+
+	if (strcmp(filepath, ""))
+	{
+		strcpy(mtlpath, filepath);
+		strcat(mtlpath, "/");
+	}
+	
 	strcat(mtlpath, mtlname);
 
 	stream *f = openfile(mtlpath, "r");
 	if (!f) return false;
-
+	
 	parsemtl(f);
 
 	return true;
@@ -2212,7 +2254,8 @@ bool parseobj(stream *f, const char *filename)
 	vector<Vec3> attrib[3];
 	char buf[512];
 	hashtable<objvert, int> verthash;
-	string meshname = "", matname = "";
+	ematerial mtl;
+	string meshname = "", matname;
 	int curmesh = -1, smooth = 0;
 	   
 	while (f->getline(buf, sizeof(buf)))
@@ -2246,8 +2289,10 @@ bool parseobj(stream *f, const char *filename)
 			char *name = c;
 			size_t namelen = strlen(name);
 			while (namelen > 0 && isspace(name[namelen - 1])) namelen--;
-			copystring(matname, name, min(namelen + 1, sizeof(matname)));
-			loadmtl(filename, matname);
+			string mtlname = "";
+			copystring(mtlname, name, min(namelen + 1, sizeof(mtlname)));
+			loadmtl(filename, mtlname);
+			break;
 		}
 		case 'u':
 		{
@@ -3567,12 +3612,6 @@ bool writeiqm(const char *filename)
 	if (animdata.length()) hdr.ofs_frames = hdr.filesize; hdr.filesize += animdata.length() * sizeof(ushort);
 	if (bounds.length()) hdr.ofs_bounds = hdr.filesize; hdr.filesize += bounds.length() * sizeof(float[8]);
 	if (commentdata.length()) hdr.ofs_comment = hdr.filesize; hdr.num_comment = commentdata.length(); hdr.filesize += hdr.num_comment;
-
-	/* Add extensions. */
-	if (extensions.length()) 
-	{
-
-	}
 
 	lilswap(&hdr.version, (sizeof(hdr) - sizeof(hdr.magic)) / sizeof(uint));
 	f->write(&hdr, sizeof(hdr));

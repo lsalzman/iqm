@@ -26,6 +26,7 @@ struct iqmmesh
 {
 	unsigned int name;
 	unsigned int material;
+	unsigned int material_index;
 	unsigned int first_vertex, num_vertexes;
 	unsigned int first_triangle, num_triangles;
 };
@@ -53,6 +54,23 @@ enum
 	IQM_HALF = 6,
 	IQM_FLOAT = 7,
 	IQM_DOUBLE = 8
+};
+
+enum
+{
+	IQM_TEXTURE_TYPE_NONE		  = 0x0,
+	IQM_TEXTURE_TYPE_DIFFUSE	  = 0x1,
+	IQM_TEXTURE_TYPE_SPECULAR	  = 0x2,
+	IQM_TEXTURE_TYPE_AMBIENT	  = 0x3,
+	IQM_TEXTURE_TYPE_EMISSIVE	  = 0x4,
+	IQM_TEXTURE_TYPE_HEIGHT		  = 0x5,
+	IQM_TEXTURE_TYPE_NORMALS	  = 0x6,
+	IQM_TEXTURE_TYPE_SHININESS	  = 0x7,
+	IQM_TEXTURE_TYPE_OPACITY	  = 0x8,
+	IQM_TEXTURE_TYPE_DISPLACEMENT = 0x9,
+	IQM_TEXTURE_TYPE_LIGHTMAP	  = 0xA,
+	IQM_TEXTURE_TYPE_REFLECTION	  = 0xB,
+	IQM_TEXTURE_TYPE_UNKNOWN	  = 0xC
 };
 
 struct iqmtriangle
@@ -121,6 +139,11 @@ struct iqmbounds
 {
 	float bbmin[3], bbmax[3];
 	float xyradius, radius;
+};
+
+struct iqmmaterial
+{
+	unsigned int diffuse_texture;
 };
 
 struct iqmextension
