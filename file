@@ -630,13 +630,14 @@ struct filestream : stream
     bool getline(char *str, int len)
     {
         bool ret = fgets(str, len, file) != NULL;
-		if (ret)
-		{
-			str[strlen(str) - 1] = '\0';
-		}
-
-		return ret;
+	if (ret)
+	{
+	  str[strlen(str) - 1] = '\0';
+	}
+	
+	return ret;
     }
+    
     bool putstring(const char *str) { return fputs(str, file)!=EOF; }
 
     int printf(const char *fmt, ...)
