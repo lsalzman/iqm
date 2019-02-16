@@ -22,6 +22,12 @@
 #define strcasecmp _stricmp
 #endif
 
+#ifndef IQM_CONFIG_MULTIPLE_MESHES
+#	define IQM_CONFIG_MULTIPLE_MESHES 0
+#endif // IQM_CONFIG_MULTIPLE_MESHES
+
+#define IQM_ENABLED(_condition) (_condition)
+
 typedef unsigned char uchar;
 typedef unsigned short ushort;
 typedef unsigned int uint;

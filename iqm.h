@@ -145,7 +145,8 @@ struct iqmbounds
 struct iqmmaterial
 {
 	unsigned int name;
-	unsigned int diffuse_texture;
+	unsigned int texture_diffuse;
+	unsigned int texture_specular;
 };
 
 struct iqmextension

@@ -9,7 +9,7 @@ vector<mesh> meshes;
 struct anim { uint name; uint firstframe, numframes; float fps; uint flags; anim() : name(0), firstframe(0), numframes(0), fps(0), flags(0) {} };
 vector<anim> anims;
 
-struct material { uint name; int texture_diffuse; };
+struct material { uint name; uint texture_diffuse; uint texture_specular; };
 vector<material> materials;
 
 struct joint { uint name; int parent; float pos[3], orient[4], scale[3]; joint() : name(0), parent(-1) { memset(pos, 0, sizeof(pos)); memset(orient, 0, sizeof(orient)); memset(scale, 0, sizeof(scale)); } };
@@ -233,8 +233,9 @@ struct ematerial
 {
 	const char *name;
 	const char *texture_diffuse;
+	const char *texture_specular;
 
-	ematerial() : name(NULL), texture_diffuse(NULL) {}
+	ematerial() : name(NULL), texture_diffuse(NULL), texture_specular(NULL){}
 };
 
 struct eanim
@@ -793,6 +794,8 @@ bool makematerilindex(const char *material, int *index)
 		}
 	}
 
+	*index = -1;
+
 	return false;
 }
 
@@ -1001,6 +1004,7 @@ void makematerials(void)
 		material &m = materials.add();
 		m.name = sharestring(em.name);
 		m.texture_diffuse = sharestring(em.texture_diffuse);
+		m.texture_specular = sharestring(em.texture_specular);
 	}
 }
 
@@ -2211,7 +2215,6 @@ void parsemtl(stream *f)
 	char buf[256];
 	string texturename = "";
 	string materialname = "";
-	int curmaterial = -1;
 
 	while (f->getline(buf, sizeof(buf)))
 	{
@@ -2227,27 +2230,47 @@ void parsemtl(stream *f)
 			char *name = c;
 			size_t namelen = strlen(name);
 			while (namelen > 0 && isspace(name[namelen - 1])) namelen--;
-			copystring(materialname, name, min(namelen + 1, sizeof(materialname)));
-			curmaterial == -1;	
+			copystring(materialname, path(name), min(namelen + 1, sizeof(materialname)));
+			ematerial &mtl = ematerials.add();
+			mtl.texture_diffuse  = "";
+			mtl.texture_specular = "";
+			mtl.name = getnamekey(materialname);
 			break; 
 		}
 		case 'm':
 		{
-			if (memcmp(c, "map_Kd", 6) == 0 && !isspace(c[6])) continue;
-			c += 7;
-			char *value = c;
-			size_t valuelen = strlen(value);
-			while (valuelen > 0 && isspace(value[valuelen - 1])) valuelen--;
-			copystring(texturename, value, min(valuelen + 1, sizeof(texturename)));
-			memcpy(texturename, path(texturename, true), strlen(texturename));
-			
-			if (curmaterial < 0)
+		 	if (!isspace(c[6])) continue;
+			int texturetype = IQM_TEXTURE_TYPE_NONE;
+			if (memcmp(c, "map_Kd", 6) == 0)
 			{
-				ematerial &mtl = ematerials.add();
-				mtl.name = getnamekey(materialname);
-				mtl.texture_diffuse = getnamekey(texturename);
+			  texturetype = IQM_TEXTURE_TYPE_DIFFUSE; 
 			}
-			break; 
+			else if (memcmp(c, "map_Ks", 6) == 0) 
+			{
+				texturetype = IQM_TEXTURE_TYPE_SPECULAR; 
+			}
+
+			if (texturetype != IQM_TEXTURE_TYPE_NONE)
+			{
+				c += 7;
+				char *value = c;
+				size_t valuelen = strlen(value);
+				while (valuelen > 0 && isspace(value[valuelen - 1])) valuelen--;
+				copystring(texturename, value, min(valuelen + 1, sizeof(texturename)));
+				memcpy(texturename, path(texturename, true), strlen(texturename));
+
+				ematerial &mtl = ematerials.last();
+				switch (texturetype)
+				{
+				case IQM_TEXTURE_TYPE_DIFFUSE:
+					mtl.texture_diffuse = getnamekey(texturename);
+					break;
+				case IQM_TEXTURE_TYPE_SPECULAR:
+					mtl.texture_specular = getnamekey(texturename);
+					break;
+				}
+			}
+			break;
 		}
 		}
 	}
@@ -2281,7 +2304,7 @@ bool parseobj(stream *f, const char *filename)
 	char buf[512];
 	hashtable<objvert, int> verthash;
 	ematerial mtl;
-	string meshname = "", matname;
+	string meshname = "", matname = "";
 	int curmesh = -1, smooth = 0;
 	   
 	while (f->getline(buf, sizeof(buf)))
@@ -2402,9 +2425,12 @@ bool parseobj(stream *f, const char *filename)
 
 bool loadobj(const char *filename, const filespec &spec)
 {
-	//stream *f = openfile(filename, "r");
-	//if (!f) return false;
-
+	if (IQM_ENABLED(IQM_CONFIG_MULTIPLE_MESHES))
+	{  
+		stream *f = openfile(filename, "r");
+		if (!f) return false;
+	}
+	  
 	int numfiles = 0;
 	while (filename)
 	{
