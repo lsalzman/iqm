@@ -9,7 +9,7 @@ vector<mesh> meshes;
 struct anim { uint name; uint firstframe, numframes; float fps; uint flags; anim() : name(0), firstframe(0), numframes(0), fps(0), flags(0) {} };
 vector<anim> anims;
 
-struct material { uint diffuse_texture; };
+struct material { uint name; int texture_diffuse; };
 vector<material> materials;
 
 struct joint { uint name; int parent; float pos[3], orient[4], scale[3]; joint() : name(0), parent(-1) { memset(pos, 0, sizeof(pos)); memset(orient, 0, sizeof(orient)); memset(scale, 0, sizeof(scale)); } };
@@ -781,6 +781,21 @@ struct vertexcache : listnode<vertexcache>
 	}
 };
 
+bool makematerilindex(const char *material, int *index)
+{
+	loopv(ematerials)
+	{
+		ematerial &mat = ematerials[i];
+		if (strcmp(mat.name, material) == 0)
+		{
+			*index = i;
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void maketriangles(vector<triangleinfo> &tris, const vector<sharedvert> &mmap)
 {
 	triangleinfo **uses = new triangleinfo *[3 * tris.length()];
@@ -978,6 +993,17 @@ void makeneighbors()
 	}
 }
 
+void makematerials(void)
+{
+	loopv(ematerials)
+	{
+		ematerial &em = ematerials[i];
+		material &m = materials.add();
+		m.name = sharestring(em.name);
+		m.texture_diffuse = sharestring(em.texture_diffuse);
+	}
+}
+
 Quat erotate(0, 0, 0, 1);
 double escale = 1;
 Vec3 emeshtrans(0, 0, 0);
@@ -985,6 +1011,7 @@ Vec3 emeshtrans(0, 0, 0);
 void makemeshes()
 {
 	meshes.setsize(0);
+	materials.setsize(0);
 	triangles.setsize(0);
 	neighbors.setsize(0);
 	vmap.setsize(0);
@@ -1003,7 +1030,7 @@ void makemeshes()
 		{
 			emesh &em = emeshes[j];
 			if (em.name != em1.name || em.material != em1.material) continue;
-			int lasttri = emeshes.inrange(i + 1) ? emeshes[i + 1].firsttri : etriangles.length();
+			int lasttri = emeshes.inrange(j + 1) ? emeshes[j + 1].firsttri : etriangles.length();
 			for (int k = em.firsttri; k < lasttri; k++)
 			{
 				etriangle &et = etriangles[k];
@@ -1021,9 +1048,8 @@ void makemeshes()
 
 		mesh &m = meshes.add();
 		m.name = sharestring(em1.name);
-		/* Cope with material info. */
 		m.material = sharestring(em1.material);
-		m.materialindex = 0; // Locate concrete material.
+		makematerilindex(em1.material, &m.materialindex);
 		m.firsttri = triangles.length();
 		m.firstvert = vmap.length();
 		maketriangles(tinfo, mmap);
@@ -2376,8 +2402,8 @@ bool parseobj(stream *f, const char *filename)
 
 bool loadobj(const char *filename, const filespec &spec)
 {
-	stream *f = openfile(filename, "r");
-	if (!f) return false;
+	//stream *f = openfile(filename, "r");
+	//if (!f) return false;
 
 	int numfiles = 0;
 	while (filename)
@@ -2391,6 +2417,7 @@ bool loadobj(const char *filename, const filespec &spec)
 			{
 				esmoothgroups[0].key = 0;
 			}
+		
 			if (parseobj(f, filename)) numfiles++;
 			delete f;
 		}
@@ -2404,7 +2431,10 @@ bool loadobj(const char *filename, const filespec &spec)
 	if (!numfiles) return false;
 
 	smoothverts();
+
 	makemeshes();
+
+	makematerials();
 
 	return true;
 }
@@ -3612,7 +3642,7 @@ bool writeiqm(const char *filename)
 	if (animdata.length()) hdr.ofs_frames = hdr.filesize; hdr.filesize += animdata.length() * sizeof(ushort);
 	if (bounds.length()) hdr.ofs_bounds = hdr.filesize; hdr.filesize += bounds.length() * sizeof(float[8]);
 	if (commentdata.length()) hdr.ofs_comment = hdr.filesize; hdr.num_comment = commentdata.length(); hdr.filesize += hdr.num_comment;
-
+	if (materials.length()) hdr.ofs_materials = hdr.filesize; hdr.num_materials = materials.length(); hdr.filesize += materials.length() * sizeof(material);
 	lilswap(&hdr.version, (sizeof(hdr) - sizeof(hdr.magic)) / sizeof(uint));
 	f->write(&hdr, sizeof(hdr));
 
@@ -3623,6 +3653,7 @@ bool writeiqm(const char *filename)
 		mesh &m = meshes[i];
 		f->putlil(m.name);
 		f->putlil(m.material);
+		f->putlil(m.materialindex);
 		f->putlil(m.firstvert);
 		f->putlil(m.numverts);
 		f->putlil(m.firsttri);
@@ -3695,6 +3726,13 @@ bool writeiqm(const char *filename)
 	}
 
 	if (commentdata.length()) f->write(commentdata.getbuf(), commentdata.length());
+	
+	loopv(materials)
+	{
+		material &m = materials[i];
+		f->putlil(m.name);
+		f->putlil(m.texture_diffuse);
+	}
 
 	delete f;
 	return true;

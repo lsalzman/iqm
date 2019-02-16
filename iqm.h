@@ -19,6 +19,7 @@ struct iqmheader
 	unsigned int num_anims, ofs_anims;
 	unsigned int num_frames, num_framechannels, ofs_frames, ofs_bounds;
 	unsigned int num_comment, ofs_comment;
+	unsigned int num_materials, ofs_materials;
 	unsigned int num_extensions, ofs_extensions;
 };
 
@@ -26,7 +27,7 @@ struct iqmmesh
 {
 	unsigned int name;
 	unsigned int material;
-	unsigned int material_index;
+	unsigned int materialindex;
 	unsigned int first_vertex, num_vertexes;
 	unsigned int first_triangle, num_triangles;
 };
@@ -143,6 +144,7 @@ struct iqmbounds
 
 struct iqmmaterial
 {
+	unsigned int name;
 	unsigned int diffuse_texture;
 };
 
