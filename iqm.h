@@ -27,7 +27,7 @@ struct iqmmesh
 {
 	unsigned int name;
 	unsigned int material;
-	unsigned int materialindex;
+	int materialindex;
 	unsigned int first_vertex, num_vertexes;
 	unsigned int first_triangle, num_triangles;
 };
