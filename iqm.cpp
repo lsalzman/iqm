@@ -9,7 +9,7 @@ vector<mesh> meshes;
 struct anim { uint name; uint firstframe, numframes; float fps; uint flags; anim() : name(0), firstframe(0), numframes(0), fps(0), flags(0) {} };
 vector<anim> anims;
 
-struct material { uint name; uint texture_diffuse; uint texture_specular; };
+struct material { uint name; uint texture_diffuse, texture_specular, texture_height, texture_opacity; };
 vector<material> materials;
 
 struct joint { uint name; int parent; float pos[3], orient[4], scale[3]; joint() : name(0), parent(-1) { memset(pos, 0, sizeof(pos)); memset(orient, 0, sizeof(orient)); memset(scale, 0, sizeof(scale)); } };
@@ -234,8 +234,9 @@ struct ematerial
 	const char *name;
 	const char *texture_diffuse;
 	const char *texture_specular;
-
-	ematerial() : name(NULL), texture_diffuse(NULL), texture_specular(NULL){}
+	const char *texture_height;
+	const char *texture_opacity;
+	ematerial() : name(NULL), texture_diffuse(NULL), texture_specular(NULL), texture_height(NULL), texture_opacity(NULL){}
 };
 
 struct eanim
@@ -2249,6 +2250,14 @@ void parsemtl(stream *f)
 			{
 				texturetype = IQM_TEXTURE_TYPE_SPECULAR; 
 			}
+			else if (memcmp(c, "map_bmp", 6) == 0)
+			{
+				texturetype = IQM_TEXTURE_TYPE_HEIGHT;
+			}
+			/*else if (memcmp(c, "map_d", 5) == 0)
+			{
+				texturetype = IQM_TEXTURE_TYPE_OPACITY;
+			}*/
 
 			if (texturetype != IQM_TEXTURE_TYPE_NONE)
 			{
@@ -3758,6 +3767,9 @@ bool writeiqm(const char *filename)
 		material &m = materials[i];
 		f->putlil(m.name);
 		f->putlil(m.texture_diffuse);
+		f->putlil(m.texture_specular);
+		f->putlil(m.texture_height);
+		f->putlil(m.texture_opacity);
 	}
 
 	delete f;

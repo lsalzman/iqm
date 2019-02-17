@@ -146,7 +146,9 @@ struct iqmmaterial
 {
 	unsigned int name;
 	unsigned int texture_diffuse;
-	unsigned int texture_specular;
+	unsigned int texture_specular; 
+	unsigned int texture_height;	
+	unsigned int texture_opacity;	
 };
 
 struct iqmextension
