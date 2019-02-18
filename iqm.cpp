@@ -9,7 +9,7 @@ vector<mesh> meshes;
 struct anim { uint name; uint firstframe, numframes; float fps; uint flags; anim() : name(0), firstframe(0), numframes(0), fps(0), flags(0) {} };
 vector<anim> anims;
 
-struct material { uint name; uint texture_diffuse, texture_specular, texture_height, texture_opacity; };
+struct material { uint name; uint textures[IQM_TEXTURE_TYPE_COUNT]; };
 vector<material> materials;
 
 struct joint { uint name; int parent; float pos[3], orient[4], scale[3]; joint() : name(0), parent(-1) { memset(pos, 0, sizeof(pos)); memset(orient, 0, sizeof(orient)); memset(scale, 0, sizeof(scale)); } };
@@ -232,11 +232,8 @@ struct ejoint
 struct ematerial
 {
 	const char *name;
-	const char *texture_diffuse;
-	const char *texture_specular;
-	const char *texture_height;
-	const char *texture_opacity;
-	ematerial() : name(NULL), texture_diffuse(NULL), texture_specular(NULL), texture_height(NULL), texture_opacity(NULL){}
+	const char *textures[IQM_TEXTURE_TYPE_COUNT];
+	ematerial() : name(NULL) {}
 };
 
 struct eanim
@@ -1004,8 +1001,10 @@ void makematerials(void)
 		ematerial &em = ematerials[i];
 		material &m = materials.add();
 		m.name = sharestring(em.name);
-		m.texture_diffuse = sharestring(em.texture_diffuse);
-		m.texture_specular = sharestring(em.texture_specular);
+		m.textures[IQM_TEXTURE_TYPE_DIFFUSE]  = sharestring(em.textures[IQM_TEXTURE_TYPE_DIFFUSE]);
+		m.textures[IQM_TEXTURE_TYPE_SPECULAR] = sharestring(em.textures[IQM_TEXTURE_TYPE_SPECULAR]);
+		m.textures[IQM_TEXTURE_TYPE_HEIGHT]   = sharestring(em.textures[IQM_TEXTURE_TYPE_HEIGHT]);
+		m.textures[IQM_TEXTURE_TYPE_OPACITY]  = sharestring(em.textures[IQM_TEXTURE_TYPE_OPACITY]);
 	}
 }
 
@@ -2213,9 +2212,11 @@ void parseobjvert(char *s, vector<Vec3> &out)
 
 void parsemtl(stream *f)
 {
-	char buf[256];
+	char buf[512];
 	string texturename = "";
 	string materialname = "";
+	int texturetype = IQM_TEXTURE_TYPE_NONE;
+	int offset = 0;
 
 	while (f->getline(buf, sizeof(buf)))
 	{
@@ -2233,35 +2234,49 @@ void parsemtl(stream *f)
 			while (namelen > 0 && isspace(name[namelen - 1])) namelen--;
 			copystring(materialname, path(name), min(namelen + 1, sizeof(materialname)));
 			ematerial &mtl = ematerials.add();
-			mtl.texture_diffuse  = "";
-			mtl.texture_specular = "";
+			mtl.textures[IQM_TEXTURE_TYPE_DIFFUSE]  = "";
+			mtl.textures[IQM_TEXTURE_TYPE_SPECULAR] = "";
+			mtl.textures[IQM_TEXTURE_TYPE_HEIGHT]   = "";
+			mtl.textures[IQM_TEXTURE_TYPE_OPACITY]  = "";
 			mtl.name = getnamekey(materialname);
 			break; 
 		}
 		case 'm':
 		{
-		 	if (!isspace(c[6])) continue;
-			int texturetype = IQM_TEXTURE_TYPE_NONE;
-			if (memcmp(c, "map_Kd", 6) == 0)
+			if (isspace(c[6]))
 			{
-			  texturetype = IQM_TEXTURE_TYPE_DIFFUSE; 
+				if (memcmp(c, "map_Kd", 6) == 0)
+				{
+					texturetype = IQM_TEXTURE_TYPE_DIFFUSE;
+					offset = 7;
+				}
+				else if (memcmp(c, "map_Ks", 6) == 0)
+				{
+					texturetype = IQM_TEXTURE_TYPE_SPECULAR;
+					offset = 7;
+				}
+				else if (memcmp(c, "map_bmp", 6) == 0)
+				{
+					texturetype = IQM_TEXTURE_TYPE_HEIGHT;
+					offset = 7;
+				}
 			}
-			else if (memcmp(c, "map_Ks", 6) == 0) 
+			else if (isspace(c[5]))
 			{
-				texturetype = IQM_TEXTURE_TYPE_SPECULAR; 
+				if (memcmp(c, "map_d", 5) == 0)
+				{
+					texturetype = IQM_TEXTURE_TYPE_OPACITY;
+					offset = 6;
+				}
 			}
-			else if (memcmp(c, "map_bmp", 6) == 0)
+			else
 			{
-				texturetype = IQM_TEXTURE_TYPE_HEIGHT;
+				continue;
 			}
-			/*else if (memcmp(c, "map_d", 5) == 0)
-			{
-				texturetype = IQM_TEXTURE_TYPE_OPACITY;
-			}*/
 
 			if (texturetype != IQM_TEXTURE_TYPE_NONE)
 			{
-				c += 7;
+				c += offset;
 				char *value = c;
 				size_t valuelen = strlen(value);
 				while (valuelen > 0 && isspace(value[valuelen - 1])) valuelen--;
@@ -2269,15 +2284,7 @@ void parsemtl(stream *f)
 				memcpy(texturename, path(texturename, true), strlen(texturename));
 
 				ematerial &mtl = ematerials.last();
-				switch (texturetype)
-				{
-				case IQM_TEXTURE_TYPE_DIFFUSE:
-					mtl.texture_diffuse = getnamekey(texturename);
-					break;
-				case IQM_TEXTURE_TYPE_SPECULAR:
-					mtl.texture_specular = getnamekey(texturename);
-					break;
-				}
+				mtl.textures[texturetype] = getnamekey(texturename);
 			}
 			break;
 		}
@@ -3766,10 +3773,10 @@ bool writeiqm(const char *filename)
 	{
 		material &m = materials[i];
 		f->putlil(m.name);
-		f->putlil(m.texture_diffuse);
-		f->putlil(m.texture_specular);
-		f->putlil(m.texture_height);
-		f->putlil(m.texture_opacity);
+		loopi(IQM_TEXTURE_TYPE_COUNT)
+		{
+			f->putlil(m.textures[i]);
+		}
 	}
 
 	delete f;
