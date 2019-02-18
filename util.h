@@ -655,38 +655,6 @@ struct filestream : stream
 	}
 };
 
-size_t length_until_line_feed(const char *token, size_t n)
-{
-	size_t len = 0;
-
-	/* Assume token[n -1] = '\0'*/
-	for (len = 0; len < n; len++)
-	{
-		if ((token[len] == '\n') || (token[len] == '\r'))
-		{
-			break;
-		}
-	}
-
-	return len;
-}
-
-char* my_strdup(const char *s, size_t max_length)
-{
-	char *d;
-	size_t len;
-
-	if (s == NULL) return NULL;
-
-	len = length_until_line_feed(s, max_length);
-
-	d = (char*)malloc(len + 1);
-	memcpy(d, s, (size_t)(len));
-	d[len] = '\0';
-
-	return d;
-}
-
 char *path(char *s)
 {
 	for (char *curpart = s;;)
