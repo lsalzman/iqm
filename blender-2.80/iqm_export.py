@@ -823,7 +823,6 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
                 coordmatrix = mathutils.Matrix.Scale(scale, 4) @ coordmatrix 
             materials = {}
             groups = obj.vertex_groups
-            uvfaces = data.uv_textures.active and data.uv_textures.active.data
             uvlayer = data.uv_layers.active and data.uv_layers.active.data
             colors = None
             alpha = None
@@ -839,6 +838,16 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
                             alpha = layer.data
                     elif not colors:
                         colors = layer.data
+            matnames = {}
+            if data.materials:
+                for idx, mat in data.materials:
+                    matprefix = mat.name or ''
+                    matimage = ''
+                    for mtex in mat.texture_slots:
+                        if mtex and mtex.texture and mtex.texure.type == 'IMAGE' and mtex.texture.image:
+                            matimage = os.path.basename(mtex.texture.image.filepath)
+                            break
+                    matnames[idx] = matfun(matprefix, matimage)
             for face in data.polygons:
                 if len(face.vertices) < 3:
                     continue
@@ -846,19 +855,14 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
                 if all([ data.vertices[i].co == data.vertices[face.vertices[0]].co for i in face.vertices[1:] ]):
                     continue
 
-                uvface = uvfaces and uvfaces[face.index]
-                material = os.path.basename(uvface.image.filepath) if uvface and uvface.image else ''
                 matindex = face.material_index
                 try:
-                    mesh = materials[obj.name, matindex, material] 
+                    mesh = materials[obj.name, matindex] 
                 except:
-                    try:
-                        matprefix = (data.materials and data.materials[matindex].name) or ''
-                    except:
-                        matprefix = ''
-                    mesh = Mesh(obj.name, matfun(matprefix, material), data.vertices)
+                    matname = matnames.get(matindex, '')
+                    mesh = Mesh(obj.name, matname, data.vertices)
                     meshes.append(mesh)
-                    materials[obj.name, matindex, material] = mesh
+                    materials[obj.name, matindex] = mesh
 
                 verts = mesh.verts
                 vertmap = mesh.vertmap
