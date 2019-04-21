@@ -3,7 +3,7 @@
 bl_info = {
     "name": "Export Inter-Quake Model (.iqm/.iqe)",
     "author": "Lee Salzman",
-    "version": (2019, 4, 2),
+    "version": (2019, 4, 21),
     "blender": (2, 80, 0),
     "location": "File > Export > Inter-Quake Model",
     "description": "Export to the Inter-Quake Model format (.iqm/.iqe)",
@@ -229,7 +229,7 @@ class Bone:
         self.matrix = matrix
         self.localmatrix = matrix
         if self.parent:
-            self.localmatrix = parent.matrix.inverted() * self.localmatrix
+            self.localmatrix = parent.matrix.inverted() @ self.localmatrix
         self.numchannels = 0
         self.channelmask = 0
         self.channeloffsets = [ 1.0e10, 1.0e10, 1.0e10, 1.0e10, 1.0e10, 1.0e10, 1.0e10, 1.0e10, 1.0e10, 1.0e10 ]
@@ -350,7 +350,7 @@ class Animation:
         for i, bone in enumerate(bones):
             loc, quat, scale, mat = frame[i]
             if bone.parent:
-                mat = transforms[bone.parent.index] * mat
+                mat = transforms[bone.parent.index] @ mat
             transforms.append(mat)
         for i, mat in enumerate(transforms):
             transforms[i] = mat * invbase[i]
@@ -359,7 +359,7 @@ class Animation:
                 pos = mathutils.Vector((0.0, 0.0, 0.0))
                 for (weight, bone) in v.weights:
                     if weight > 0:
-                        pos += (transforms[bone] * v.coord) * (weight / 255.0)
+                        pos += (transforms[bone] @ v.coord) * (weight / 255.0)
                 if bbmin:
                     bbmin.x = min(bbmin.x, pos.x)
                     bbmin.y = min(bbmin.y, pos.y)
@@ -706,7 +706,7 @@ def derigifyBones(context, armature, scale):
     worklist = [ bone for bone in defnames if bone not in defparent ]
     for index, bname in enumerate(worklist):
         bone = defbones[bname]
-        bonematrix = worldmatrix * bone.matrix_local
+        bonematrix = worldmatrix @ bone.matrix_local
         if scale != 1.0:
             bonematrix.translation *= scale
         bones[bone.name] = Bone(bname, bone.name, index, bname in defparent and bones.get(defbones[defparent[bname]].name), bonematrix)
@@ -721,7 +721,7 @@ def collectBones(context, armature, scale):
     worldmatrix = armature.matrix_world
     worklist = [ bone for bone in data.bones.values() if not bone.parent ]
     for index, bone in enumerate(worklist):
-        bonematrix = worldmatrix * bone.matrix_local
+        bonematrix = worldmatrix @ bone.matrix_local
         if scale != 1.0:
             bonematrix.translation *= scale
         bones[bone.name] = Bone(bone.name, bone.name, index, bone.parent and bones.get(bone.parent.name), bonematrix)
@@ -749,9 +749,9 @@ def collectAnim(context, armature, scale, bones, action, startframe = None, endf
         for bone in bones:
             posematrix = pose.bones[bone.origname].matrix
             if bone.parent:
-                posematrix = pose.bones[bone.parent.origname].matrix.inverted() * posematrix
+                posematrix = pose.bones[bone.parent.origname].matrix.inverted() @ posematrix
             else:
-                posematrix = worldmatrix * posematrix
+                posematrix = worldmatrix @ posematrix
             if scale != 1.0:
                 posematrix.translation *= scale
             loc = posematrix.to_translation()
@@ -820,7 +820,7 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
             coordmatrix = obj.matrix_world
             normalmatrix = coordmatrix.inverted().transposed()
             if scale != 1.0:
-                coordmatrix = mathutils.Matrix.Scale(scale, 4) * coordmatrix 
+                coordmatrix = mathutils.Matrix.Scale(scale, 4) @ coordmatrix 
             materials = {}
             groups = obj.vertex_groups
             uvfaces = data.uv_textures.active and data.uv_textures.active.data
@@ -866,13 +866,13 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
                 for loopidx in face.loop_indices:
                     loop = data.loops[loopidx]
                     v = data.vertices[loop.vertex_index]
-                    vertco = coordmatrix * v.co
+                    vertco = coordmatrix @ v.co
 
                     if not face.use_smooth: 
                         vertno = mathutils.Vector(face.normal)
                     else:
                         vertno = mathutils.Vector(loop.normal)
-                    vertno = normalmatrix * vertno
+                    vertno = normalmatrix @ vertno
                     vertno.normalize()
 
                     # flip V axis of texture space
