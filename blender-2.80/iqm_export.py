@@ -353,7 +353,7 @@ class Animation:
                 mat = transforms[bone.parent.index] @ mat
             transforms.append(mat)
         for i, mat in enumerate(transforms):
-            transforms[i] = mat * invbase[i]
+            transforms[i] = mat @ invbase[i]
         for mesh in meshes:
             for v in mesh.verts:
                 pos = mathutils.Vector((0.0, 0.0, 0.0))
@@ -813,7 +813,7 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
     meshes = []
     for obj in objs:
         if obj.type == 'MESH':
-            data = obj.to_mesh(context.scene, False, 'PREVIEW')
+            data = obj.to_mesh(context.depsgraph, True)
             if not data.polygons:
                 continue
             data.calc_normals_split()
@@ -822,6 +822,7 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
             if scale != 1.0:
                 coordmatrix = mathutils.Matrix.Scale(scale, 4) @ coordmatrix 
             materials = {}
+            matnames = {}
             groups = obj.vertex_groups
             uvlayer = data.uv_layers.active and data.uv_layers.active.data
             colors = None
@@ -838,9 +839,8 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
                             alpha = layer.data
                     elif not colors:
                         colors = layer.data
-            matnames = {}
             if data.materials:
-                for idx, mat in data.materials:
+                for idx, mat in enumerate(data.materials):
                     matprefix = mat.name or ''
                     matimage = ''
                     if mat.texture_slots:
@@ -852,7 +852,7 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
                         for n in mat.node_tree.nodes:
                             if n.type == 'TEX_IMAGE' and n.image:
                                 matimage = os.path.basename(n.image.filepath)
-                                break;
+                                break
                     matnames[idx] = matfun(matprefix, matimage)
             for face in data.polygons:
                 if len(face.vertices) < 3:
