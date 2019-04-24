@@ -3,7 +3,7 @@
 bl_info = {
     "name": "Export Inter-Quake Model (.iqm/.iqe)",
     "author": "Lee Salzman",
-    "version": (2019, 4, 23),
+    "version": (2019, 4, 24),
     "blender": (2, 80, 0),
     "location": "File > Export > Inter-Quake Model",
     "description": "Export to the Inter-Quake Model format (.iqm/.iqe)",
@@ -65,7 +65,7 @@ class Vertex:
             self.weights = [ (0, 0), (0, 0), (0, 0), (0, 0) ]
             return
         self.weights.sort(key = lambda weight: weight[0], reverse=True)
-        if len(self.weights) > 4: 
+        if len(self.weights) > 4:
             del self.weights[4:]
         totalweight = sum([ weight for (weight, bone) in self.weights])
         if totalweight > 0:
@@ -101,8 +101,8 @@ class Vertex:
         if self.coord < other.coord:
             return (self.coord.x, self.coord.y, self.coord.z, other.coord.x, other.coord.y, other.coord.z, tuple(self.weights), tuple(other.weights))
         else:
-            return (other.coord.x, other.coord.y, other.coord.z, self.coord.x, self.coord.y, self.coord.z, tuple(other.weights), tuple(self.weights)) 
-        
+            return (other.coord.x, other.coord.y, other.coord.z, self.coord.x, self.coord.y, self.coord.z, tuple(other.weights), tuple(self.weights))
+
     def __hash__(self):
         return self.index
 
@@ -117,7 +117,7 @@ class Mesh:
         self.verts     = [ None for v in verts ]
         self.vertmap   = {}
         self.tris      = []
-   
+
     def calcTangents(self):
         # See "Tangent Space Calculation" at http://www.terathon.com/code/tangent.html
         for v in self.verts:
@@ -139,14 +139,14 @@ class Mesh:
             v0.bitangent += bitangent
             v1.bitangent += bitangent
             v2.bitangent += bitangent
-        for v in self.verts:    
+        for v in self.verts:
             v.tangent = v.tangent - v.normal*v.tangent.dot(v.normal)
             v.tangent.normalize()
             if v.normal.cross(v.tangent).dot(v.bitangent) < 0:
                 v.bitangent = -1.0
             else:
                 v.bitangent = 1.0
-        
+
     def optimize(self):
         # Linear-speed vertex cache optimization algorithm by Tom Forsyth
         for v in self.verts:
@@ -165,7 +165,7 @@ class Mesh:
         besttri = -1
         bestscore = -42.0
         scores = []
-        for i, (v0, v1, v2) in enumerate(self.tris): 
+        for i, (v0, v1, v2) in enumerate(self.tris):
             scores.append(v0.score + v1.score + v2.score)
             if scores[i] > bestscore:
                 besttri = i
@@ -182,7 +182,7 @@ class Mesh:
             for v in tri:
                 if v.cacherank < 0: # debug info
                     vertloads += 1  # debug info
-                if v.index < 0: 
+                if v.index < 0:
                     v.index = len(vertschedule)
                     vertschedule.append(v)
                 v.uses.remove(besttri)
@@ -190,7 +190,7 @@ class Mesh:
                 v.score = -1.0
             vcache = [ v for v in tri if v.uses ] + [ v for v in vcache if v.cacherank >= 0 ]
             for i, v in enumerate(vcache):
-                v.cacherank = i 
+                v.cacherank = i
                 v.calcScore()
 
             besttri = -1
@@ -213,8 +213,8 @@ class Mesh:
         print('%s: %d verts optimized to %d/%d loads for %d entry LRU cache' % (self.name, len(self.verts), vertloads, len(vertschedule), MAXVCACHE))
         #print('%s: %d verts scheduled to %d' % (self.name, len(self.verts), len(vertschedule)))
         self.verts = vertschedule
-        # print('%s: %d tris scheduled to %d' % (self.name, len(self.tris), len(trischedule)))         
-        self.tris = trischedule                 
+        # print('%s: %d tris scheduled to %d' % (self.name, len(self.tris), len(trischedule)))
+        self.tris = trischedule
 
     def meshData(self, iqm):
         return [ iqm.addText(self.name), iqm.addText(self.material), self.firstvert, len(self.verts), self.firsttri, len(self.tris) ]
@@ -250,7 +250,7 @@ class Bone:
         scale.y = round(scale.y*0x10000)/0x10000
         scale.z = round(scale.z*0x10000)/0x10000
         return [ iqm.addText(self.name), parent, pos.x, pos.y, pos.z, orient.x, orient.y, orient.z, orient.w, scale.x, scale.y, scale.z ]
- 
+
     def poseData(self, iqm):
         if self.parent:
             parent = self.parent.index
@@ -267,7 +267,7 @@ class Bone:
                 self.channelscales[i] /= 0xFFFF
             else:
                 self.channelscales[i] = 0.0
-        return self.numchannels 
+        return self.numchannels
 
 
 class Animation:
@@ -305,7 +305,7 @@ class Animation:
     def animData(self, iqm):
         return [ iqm.addText(self.name), self.firstframe, len(self.frames), self.fps, self.flags ]
 
-    def frameData(self, bones): 
+    def frameData(self, bones):
         data = b''
         for frame in self.frames:
             for i, bone in enumerate(bones):
@@ -353,7 +353,7 @@ class Animation:
                 mat = transforms[bone.parent.index] @ mat
             transforms.append(mat)
         for i, mat in enumerate(transforms):
-            transforms[i] = mat * invbase[i]
+            transforms[i] = mat @ invbase[i]
         for mesh in meshes:
             for v in mesh.verts:
                 pos = mathutils.Vector((0.0, 0.0, 0.0))
@@ -382,7 +382,7 @@ class Animation:
         else:
             bbmin = bbmax = mathutils.Vector((0.0, 0.0, 0.0))
         return IQM_BOUNDS.pack(bbmin.x, bbmin.y, bbmin.z, bbmax.x, bbmax.y, bbmax.z, xyradius, radius)
- 
+
     def boundsData(self, bones, meshes):
         invbase = []
         for bone in bones:
@@ -390,10 +390,10 @@ class Animation:
         data = b''
         for i, frame in enumerate(self.frames):
             print('Calculating bounding box for %s:%d' % (self.name, i))
-            data += self.frameBoundsData(bones, meshes, frame, invbase)     
+            data += self.frameBoundsData(bones, meshes, frame, invbase)
         return data
-   
- 
+
+
 class IQMFile:
     def __init__(self):
         self.textoffsets = {}
@@ -449,7 +449,7 @@ class IQMFile:
     def calcFrameSize(self):
         for anim in self.anims:
             anim.calcFrameLimits(self.joints)
-        self.framesize = 0 
+        self.framesize = 0
         for joint in self.joints:
             self.framesize += joint.calcChannelMask()
         for joint in self.joints:
@@ -466,7 +466,7 @@ class IQMFile:
         file.write(IQM_VERTEXARRAY.pack(IQM_TEXCOORD, 0, IQM_FLOAT, 2, offset))
         offset += self.numverts * struct.calcsize('<2f')
         file.write(IQM_VERTEXARRAY.pack(IQM_NORMAL, 0, IQM_FLOAT, 3, offset))
-        offset += self.numverts * struct.calcsize('<3f') 
+        offset += self.numverts * struct.calcsize('<3f')
         file.write(IQM_VERTEXARRAY.pack(IQM_TANGENT, 0, IQM_FLOAT, 4, offset))
         offset += self.numverts * struct.calcsize('<4f')
         if self.joints:
@@ -537,9 +537,9 @@ class IQMFile:
     def writeTris(self, file):
         for mesh in self.meshes:
             for (v0, v1, v2) in mesh.tris:
-                file.write(struct.pack('<3I', v0.index + mesh.firstvert, v1.index + mesh.firstvert, v2.index + mesh.firstvert)) 
+                file.write(struct.pack('<3I', v0.index + mesh.firstvert, v1.index + mesh.firstvert, v2.index + mesh.firstvert))
         for (n0, n1, n2) in self.neighbors:
-            if n0 < 0: n0 = 0xFFFFFFFF 
+            if n0 < 0: n0 = 0xFFFFFFFF
             if n1 < 0: n1 = 0xFFFFFFFF
             if n2 < 0: n2 = 0xFFFFFFFF
             file.write(struct.pack('<3I', n0, n1, n2))
@@ -557,7 +557,7 @@ class IQMFile:
             ofs_meshes = self.filesize
             self.filesize += len(self.meshdata) * IQM_MESH.size
         else:
-            ofs_meshes = 0 
+            ofs_meshes = 0
         if self.numverts > 0:
             ofs_vertexarrays = self.filesize
             num_vertexarrays = 4
@@ -572,7 +572,7 @@ class IQMFile:
             if self.joints:
                 self.filesize += self.numverts * struct.calcsize('<4B4B')
             if hascolors:
-                self.filesize += self.numverts * struct.calcsize('<4B') 
+                self.filesize += self.numverts * struct.calcsize('<4B')
         else:
             ofs_vertexarrays = 0
             num_vertexarrays = 0
@@ -806,22 +806,21 @@ def collectAnims(context, armature, scale, bones, animspecs):
     scene.frame_set(oldframe)
     return anims
 
- 
+
 def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False, filetype = 'IQM'):
     vertwarn = []
     objs = context.selected_objects #context.scene.objects
     meshes = []
     for obj in objs:
         if obj.type == 'MESH':
-            data = obj.to_mesh(context.scene, False, 'PREVIEW')
+            data = obj.to_mesh(context.depsgraph, False, calc_undeformed=False)
             if not data.polygons:
                 continue
             data.calc_normals_split()
             coordmatrix = obj.matrix_world
             normalmatrix = coordmatrix.inverted().transposed()
             if scale != 1.0:
-                coordmatrix = mathutils.Matrix.Scale(scale, 4) @ coordmatrix 
-            materials = {}
+                coordmatrix = mathutils.Matrix.Scale(scale, 4) @ coordmatrix
             groups = obj.vertex_groups
             uvlayer = data.uv_layers.active and data.uv_layers.active.data
             colors = None
@@ -838,32 +837,33 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
                             alpha = layer.data
                     elif not colors:
                         colors = layer.data
+
+            materials = {}
             matnames = {}
             if data.materials:
-                for idx, mat in data.materials:
+                for idx, mat in enumerate(data.materials):
                     matprefix = mat.name or ''
                     matimage = ''
-                    if mat.texture_slots:
-                        for t in mat.texture_slots:
-                            if t and t.texture and t.texure.type == 'IMAGE' and t.texture.image:
-                                matimage = os.path.basename(t.texture.image.filepath)
-                                break
+                    for mtex in mat.texture_paint_images:
+                        matimage = os.path.basename(mtex.filepath)
+                        break
                     if not matimage and mat.node_tree:
                         for n in mat.node_tree.nodes:
                             if n.type == 'TEX_IMAGE' and n.image:
                                 matimage = os.path.basename(n.image.filepath)
-                                break;
+                                break
                     matnames[idx] = matfun(matprefix, matimage)
+
             for face in data.polygons:
                 if len(face.vertices) < 3:
                     continue
-                
+
                 if all([ data.vertices[i].co == data.vertices[face.vertices[0]].co for i in face.vertices[1:] ]):
                     continue
 
                 matindex = face.material_index
                 try:
-                    mesh = materials[obj.name, matindex] 
+                    mesh = materials[obj.name, matindex]
                 except:
                     matname = matnames.get(matindex, '')
                     mesh = Mesh(obj.name, matname, data.vertices)
@@ -878,7 +878,7 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
                     v = data.vertices[loop.vertex_index]
                     vertco = coordmatrix @ v.co
 
-                    if not face.use_smooth: 
+                    if not face.use_smooth:
                         vertno = mathutils.Vector(face.normal)
                     else:
                         vertno = mathutils.Vector(loop.normal)
@@ -902,7 +902,7 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
                         vertalpha = alpha[loopidx].color
                         if vertcol:
                             vertcol = (vertcol[0], vertcol[1], vertcol[2], int(round(vertalpha[0] * 255.0)))
-                        else:                            
+                        else:
                             vertcol = (255, 255, 255, int(round(vertalpha[0] * 255.0)))
 
                     vertweights = []
@@ -922,8 +922,8 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
                             vertkey.normalizeWeights()
                         mesh.verts.append(vertkey)
                         faceverts.append(vertkey)
-                        continue    
-                        
+                        continue
+
                     vertkey = Vertex(v.index, vertco, vertno, vertuv, vertweights, vertcol)
                     if filetype == 'IQM':
                         vertkey.normalizeWeights()
@@ -944,8 +944,8 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
 
                 # Quake winding is reversed
                 for i in range(2, len(faceverts)):
-                    mesh.tris.append((faceverts[0], faceverts[i], faceverts[i-1])) 
- 
+                    mesh.tris.append((faceverts[0], faceverts[i], faceverts[i-1]))
+
     for mesh in meshes:
         mesh.optimize()
         if filetype == 'IQM':
@@ -1043,7 +1043,7 @@ def exportIQM(context, filename, usemesh = True, useskel = True, usebbox = True,
             names = [name for name in names if name in [bone.name for bone in bones.values()]]
             if len(names) != len(bones):
                 print('Bone order (%d) does not match skeleton (%d)' % (len(names), len(bones)))
-                return 
+                return
             print('Reordering bones')
             for bone in bones.values():
                 bone.index = names.index(bone.name)
