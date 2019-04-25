@@ -843,12 +843,7 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
                 for idx, mat in enumerate(data.materials):
                     matprefix = mat.name or ''
                     matimage = ''
-                    if mat.texture_slots:
-                        for t in mat.texture_slots:
-                            if t and t.texture and t.texure.type == 'IMAGE' and t.texture.image:
-                                matimage = os.path.basename(t.texture.image.filepath)
-                                break
-                    if not matimage and mat.node_tree:
+                    if mat.node_tree:
                         for n in mat.node_tree.nodes:
                             if n.type == 'TEX_IMAGE' and n.image:
                                 matimage = os.path.basename(n.image.filepath)
