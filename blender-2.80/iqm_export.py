@@ -427,8 +427,7 @@ class IQMFile:
     def addJoints(self, bones):
         for bone in bones:
             self.joints.append(bone)
-            if self.meshes:
-                self.jointdata.append(bone.jointData(self))
+            self.jointdata.append(bone.jointData(self))
 
     def addMeshes(self, meshes):
         self.meshes += meshes
