@@ -807,13 +807,13 @@ def collectAnims(context, armature, scale, bones, animspecs):
     return anims
 
  
-def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False, filetype = 'IQM'):
+def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False, usemods = False, filetype = 'IQM'):
     vertwarn = []
     objs = context.selected_objects #context.scene.objects
     meshes = []
     for obj in objs:
         if obj.type == 'MESH':
-            data = obj.evaluated_get(context.evaluated_depsgraph_get()).to_mesh()
+            data = obj.evaluated_get(context.evaluated_depsgraph_get()).to_mesh() if usemods else obj.original.to_mesh()
             if not data.polygons:
                 continue
             data.calc_normals_split()
@@ -1008,7 +1008,7 @@ def exportIQE(file, meshes, bones, anims):
     file.write('\n')
 
 
-def exportIQM(context, filename, usemesh = True, useskel = True, usebbox = True, usecol = False, scale = 1.0, animspecs = None, matfun = (lambda prefix, image: image), derigify = False, boneorder = None):
+def exportIQM(context, filename, usemesh = True, usemods = False, useskel = True, usebbox = True, usecol = False, scale = 1.0, animspecs = None, matfun = (lambda prefix, image: image), derigify = False, boneorder = None):
     armature = findArmature(context)
     if useskel and not armature:
         print('No armature selected')
@@ -1048,7 +1048,7 @@ def exportIQM(context, filename, usemesh = True, useskel = True, usebbox = True,
 
     bonelist = sorted(bones.values(), key = lambda bone: bone.index)
     if usemesh:
-        meshes = collectMeshes(context, bones, scale, matfun, useskel, usecol, filetype)
+        meshes = collectMeshes(context, bones, scale, matfun, useskel, usecol, usemods, filetype)
     else:
         meshes = []
     if useskel and animspecs:
@@ -1090,6 +1090,7 @@ class ExportIQM(bpy.types.Operator, bpy_extras.io_utils.ExportHelper):
     filename_ext = ".iqm"
     animspec = bpy.props.StringProperty(name="Animations", description="Animations to export", maxlen=1024, default="")
     usemesh = bpy.props.BoolProperty(name="Meshes", description="Generate meshes", default=True)
+    usemods = bpy.props.BoolProperty(name="Modifiers", description="Apply modifiers", default=True)
     useskel = bpy.props.BoolProperty(name="Skeleton", description="Generate skeleton", default=True)
     usebbox = bpy.props.BoolProperty(name="Bounding boxes", description="Generate bounding boxes", default=True)
     usecol = bpy.props.BoolProperty(name="Vertex colors", description="Export vertex colors", default=False)
@@ -1106,7 +1107,7 @@ class ExportIQM(bpy.types.Operator, bpy_extras.io_utils.ExportHelper):
             matfun = lambda prefix, image: prefix
         else:
             matfun = lambda prefix, image: image
-        exportIQM(context, self.properties.filepath, self.properties.usemesh, self.properties.useskel, self.properties.usebbox, self.properties.usecol, self.properties.usescale, self.properties.animspec, matfun, self.properties.derigify, self.properties.boneorder)
+        exportIQM(context, self.properties.filepath, self.properties.usemesh, self.properties.usemods, self.properties.useskel, self.properties.usebbox, self.properties.usecol, self.properties.usescale, self.properties.animspec, matfun, self.properties.derigify, self.properties.boneorder)
         return {'FINISHED'}
 
     def check(self, context):
