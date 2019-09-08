@@ -2195,7 +2195,7 @@ bool parseobj(stream *f)
             }
             case 'u':
             {
-                if(!strncmp(c, "usemtl", 6)) continue;
+                if(strncmp(c, "usemtl", 6)) continue;
                 while(isalpha(*c)) c++;
                 while(isspace(*c)) c++;
                 char *name = c;
