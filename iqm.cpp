@@ -43,6 +43,11 @@ static inline bool htcmp(const char *x, const sharedstring &s)
     return htcmp(x, &stringdata[s.offset]);
 }
 
+static inline uint hthash(const sharedstring &s)
+{
+    return hthash(&stringdata[s.offset]);
+}
+
 hashtable<sharedstring, uint> stringoffsets;
 
 uint sharestring(const char *s)
@@ -3757,4 +3762,3 @@ int main(int argc, char **argv)
 
 	return EXIT_SUCCESS;
 }
-
