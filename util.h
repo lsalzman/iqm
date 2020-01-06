@@ -427,7 +427,7 @@ template <class K, class T> struct hashtable
         chain *newunused = NULL;
         loopi(size) for (chain *c = table[i]; c;)
         {
-            const K& k = c->key;
+            const K &k = c->key;
             uint h = hthash(k)&(newsize-1);
             insert(newunused, newchunks, newtable, k, h)->data = c->data;
             c = c->next;
