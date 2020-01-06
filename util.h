@@ -289,7 +289,7 @@ template <class K, class T> struct hashtable
     typedef T value;
     typedef const T const_value;
 
-    enum { CHUNKSIZE = 64, MAXLOADFACTOR = 75, RESIZERATIO = 4, MAXSIZE = 128<<20 };
+    enum { CHUNKSIZE = 64, MAXLOADFACTOR = 75, RESIZEFACTOR = 4, MAXSIZE = 64<<20 };
 
     struct chain      { T data; K key; chain *next; };
     struct chainchunk { chain chains[CHUNKSIZE]; chainchunk *next; };
@@ -307,7 +307,7 @@ template <class K, class T> struct hashtable
         numelems = 0;
         chunks = NULL;
         unused = NULL;
-        table = new chain *[size];
+        table = new chain*[size];
         loopi(size) table[i] = NULL;
     }
 
@@ -319,13 +319,7 @@ template <class K, class T> struct hashtable
 
     chain *insert(const K &key, uint h)
     {
-        ++numelems;
-        if(size*RESIZERATIO < MAXSIZE && float(numelems) / size * 100.0 > MAXLOADFACTOR) { rehash(); h = hthash(key)&(size-1); }
-        return insert(unused, chunks, table, key, h);
-    }
-
-    static chain *insert(chain *&unused, chainchunk *&chunks, chain **&table, const K& key, uint h)
-    {
+        if(size <= MAXSIZE / RESIZEFACTOR && numelems * 100 > size * MAXLOADFACTOR) { rehash(); h = hthash(key)&(size-1); }
         if(!unused)
         {
             chainchunk *chunk = new chainchunk;
@@ -338,8 +332,9 @@ template <class K, class T> struct hashtable
         chain *c = unused;
         unused = unused->next;
         c->key = key;
-        c->next = table[h]; 
+        c->next = table[h];
         table[h] = c;
+        numelems++;
         return c;
     }
 
@@ -419,27 +414,23 @@ template <class K, class T> struct hashtable
 
     void rehash()
     {
-        int newsize = size*RESIZERATIO;
-        chain **newtable = new chain* [newsize];
-        loopi(newsize) newtable[i] = NULL;
+        int oldsize = size;
+        chain **oldtable = table;
 
-        chainchunk *newchunks = NULL;
-        chain *newunused = NULL;
-        loopi(size) for (chain *c = table[i]; c;)
+        size *= RESIZEFACTOR;
+        table = new chain*[size];
+        loopi(size) table[i] = NULL;
+
+        loopi(oldsize) for (chain *c = oldtable[i]; c;)
         {
-            const K &k = c->key;
-            uint h = hthash(k)&(newsize-1);
-            insert(newunused, newchunks, newtable, k, h)->data = c->data;
+            chain *p = c;
             c = c->next;
+            uint h = hthash(p->key)&(size-1);
+            p->next = table[h];
+            table[h] = p;
         }
 
-        delete[] table;
-        deletechunks();
-
-        size = newsize;
-        table = newtable;
-        chunks = newchunks;
-        unused = newunused;
+        delete[] oldtable;
     }
 };
 

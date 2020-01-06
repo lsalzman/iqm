@@ -13,7 +13,7 @@ all: iqm upgrade
 clean:
 	-$(RM) $(IQM_OBJS) $(UPGRADE_OBJS) iqm upgrade
 
-iqm: $(IQM_OBJS)
+iqm: iqm.h util.h $(IQM_OBJS)
 	$(CXX) $(CXXFLAGS) -o iqm $(IQM_OBJS)
-upgrade: $(UPGRADE_OBJS)
+upgrade: iqm.h util.h $(UPGRADE_OBJS)
 	$(CXX) $(CXXFLAGS) -o upgrade $(UPGRADE_OBJS)
