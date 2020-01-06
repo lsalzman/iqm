@@ -319,7 +319,8 @@ template <class K, class T> struct hashtable
 
     chain *insert(const K &key, uint h)
     {
-        if(size*RESIZERATIO < MAXSIZE && float(++numelems) / size * 100.0 > MAXLOADFACTOR) { rehash(); h = hthash(key)&(size-1); }
+        ++numelems;
+        if(size*RESIZERATIO < MAXSIZE && float(numelems) / size * 100.0 > MAXLOADFACTOR) { rehash(); h = hthash(key)&(size-1); }
         return insert(unused, chunks, table, key, h);
     }
 
