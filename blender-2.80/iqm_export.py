@@ -813,7 +813,8 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
     meshes = []
     for obj in objs:
         if obj.type == 'MESH':
-            data = obj.evaluated_get(context.evaluated_depsgraph_get()).to_mesh() if usemods else obj.original.to_mesh()
+            dg = context.evaluated_depsgraph_get()
+            data = obj.evaluated_get(dg).to_mesh(preserve_all_data_layers=True, depsgraph=dg) if usemods else obj.original.to_mesh(preserve_all_data_layers=True, depsgraph=dg)
             if not data.polygons:
                 continue
             data.calc_normals_split()
