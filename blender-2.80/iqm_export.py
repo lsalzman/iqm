@@ -648,6 +648,11 @@ def findArmature(context):
                     break
     return armature
 
+def poseArmature(context, armature, pose):
+    if armature:
+        armature.data.pose_position = pose
+        armature.data.update_tag()
+        context.scene.frame_set(context.scene.frame_current)
 
 def derigifyBones(context, armature, scale):
     data = armature.data
@@ -1047,11 +1052,19 @@ def exportIQM(context, filename, usemesh = True, usemods = False, useskel = True
             print('Failed opening bone order: %s' % boneorder)
             return
 
+    if armature:
+        oldpose = armature.data.pose_position
+        poseArmature(context, armature, 'REST')
+
     bonelist = sorted(bones.values(), key = lambda bone: bone.index)
     if usemesh:
         meshes = collectMeshes(context, bones, scale, matfun, useskel, usecol, usemods, filetype)
     else:
         meshes = []
+
+    if armature:
+        poseArmature(context, armature, oldpose)
+
     if useskel and animspecs:
         anims = collectAnims(context, armature, scale, bonelist, animspecs)
     else:
