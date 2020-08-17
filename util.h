@@ -246,6 +246,11 @@ template <class T> struct vector
     }
 };
 
+static inline uint htcombine(uint h1, uint h2)
+{
+    return h1 ^ (h2 + 0x9E3779B9 + (h1 << 6) + (h1 >> 2));
+}
+
 static inline uint hthash(const char *key)
 {
     uint h = 5381;
@@ -258,9 +263,32 @@ static inline bool htcmp(const char *x, const char *y)
     return !strcmp(x, y);
 }
 
-static inline uint hthash(int key)
+// https://burtleburtle.net/bob/hash/integer.html
+static inline uint hthash(uint k)
 {
-    return key;
+    k = (k ^ 61) ^ (k >> 16);
+    k = k + (k << 3);
+    k = k ^ (k >> 4);
+    k = k * 0x27d4eb2d;
+    k = k ^ (k >> 15);
+    return k;
+}
+
+static inline uint hthash(ullong k)
+{
+    k = (~k) + (k << 21);
+    k = k ^ (k >> 24);
+    k = (k + (k << 3)) + (k << 8);
+    k = k ^ (k >> 14);
+    k = (k + (k << 2)) + (k << 4);
+    k = k ^ (k << 28);
+    k = k + (k << 31);
+    return k;
+}
+
+static inline uint hthash(int k)
+{
+    return hthash(uint(k));
 }
 
 static inline bool htcmp(int x, int y)
@@ -275,11 +303,9 @@ static inline bool htcmp(double x, double y)
 
 static inline uint hthash(double k)
 {
-    union { double f; uint h[sizeof(double)/sizeof(uint)]; } conv;
-    conv.f = k;
-    uint hash = conv.h[0];
-    for(size_t i = 1; i < sizeof(conv.h)/sizeof(uint); i++) hash ^= conv.h[i];
-    return hash;
+    union { double d; ullong u; } conv;
+    conv.d = k;
+    return hthash(conv.u);
 }
 
 template <class K, class T> struct hashtable
@@ -735,7 +761,6 @@ struct Vec3
     {
         struct { double x, y, z; };
         double v[3];
-        uint h[3*sizeof(double)/sizeof(uint)];
     };
 
     Vec3() {}
@@ -793,9 +818,11 @@ static inline bool htcmp(const Vec3 &x, const Vec3 &y)
 
 static inline uint hthash(const Vec3 &k)
 {
-    uint hash = k.h[0];
-    for(size_t i = 1; i < sizeof(k.h)/sizeof(uint); i++) hash ^= k.h[i];
-    return hash;
+    uint h = hthash(k.x);
+    h = htcombine(h, k.y);
+    h = htcombine(h, k.z);
+    h = htcombine(h, k.z);
+    return h;
 }
 
 struct Vec4
@@ -804,7 +831,6 @@ struct Vec4
     {
         struct { double x, y, z, w; };
         double v[4];
-        uint h[4*sizeof(double)/sizeof(uint)];
     };
 
     Vec4() {}
@@ -860,9 +886,12 @@ static inline bool htcmp(const Vec4 &x, const Vec4 &y)
 
 static inline uint hthash(const Vec4 &k)
 {
-    uint hash = k.h[0];
-    for(size_t i = 1; i < sizeof(k.h)/sizeof(uint); i++) hash ^= k.h[i];
-    return hash;
+    uint h = hthash(k.x);
+    h = htcombine(h, k.y);
+    h = htcombine(h, k.z);
+    h = htcombine(h, k.z);
+    h = htcombine(h, k.w);
+    return h;
 }
 
 struct Matrix3x3;

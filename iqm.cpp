@@ -858,7 +858,7 @@ void maketriangles(vector<triangleinfo> &tris, const vector<sharedvert> &mmap)
 void calctangents(bool areaweight = true)
 {
     Vec3 *tangent = new Vec3[2*vmap.length()], *bitangent = tangent+vmap.length();
-    memset(tangent, 0, 2*vmap.length()*sizeof(Vec3));
+    memset((void*)tangent, 0, 2*vmap.length()*sizeof(Vec3));
     loopv(triangles)
     {
         const triangle &t = triangles[i];
@@ -980,7 +980,7 @@ void makemeshes()
     varrays.setsize(0);
     vdata.setsize(0);
 
-    hashtable<sharedvert, uint> mshare(1<<12);
+    hashtable<sharedvert, uint> mshare(max(1<<12, etriangles.length() * 3));
     vector<sharedvert> mmap;
     vector<triangleinfo> tinfo;
 
@@ -3499,7 +3499,7 @@ bool writeiqm(const char *filename)
     copystring(hdr.magic, IQM_MAGIC, sizeof(hdr.magic)); 
     hdr.filesize = sizeof(hdr);
     hdr.version = IQM_VERSION;
-    if(stringdata.length()) hdr.ofs_text = hdr.filesize; hdr.num_text = stringdata.length(); hdr.filesize += hdr.num_text;
+    if(stringdata.length()) { hdr.ofs_text = hdr.filesize; } hdr.num_text = stringdata.length(); hdr.filesize += hdr.num_text;
     hdr.num_meshes = meshes.length(); if(meshes.length()) hdr.ofs_meshes = hdr.filesize; hdr.filesize += meshes.length() * sizeof(mesh);
     uint voffset = hdr.filesize + varrays.length() * sizeof(vertexarray);
     hdr.num_vertexarrays = varrays.length(); if(varrays.length()) hdr.ofs_vertexarrays = hdr.filesize; hdr.filesize += varrays.length() * sizeof(vertexarray);
@@ -3508,14 +3508,14 @@ bool writeiqm(const char *filename)
     hdr.filesize += valign + vdata.length();
     hdr.num_vertexes = vmap.length();
     hdr.num_triangles = triangles.length(); if(triangles.length()) hdr.ofs_triangles = hdr.filesize; hdr.filesize += triangles.length() * sizeof(triangle);
-    if(neighbors.length()) hdr.ofs_adjacency = hdr.filesize; hdr.filesize += neighbors.length() * sizeof(triangle);
+    if(neighbors.length()) { hdr.ofs_adjacency = hdr.filesize; } hdr.filesize += neighbors.length() * sizeof(triangle);
     hdr.num_joints = joints.length(); if(joints.length()) hdr.ofs_joints = hdr.filesize; hdr.filesize += joints.length() * sizeof(joint);
     hdr.num_poses = poses.length(); if(poses.length()) hdr.ofs_poses = hdr.filesize; hdr.filesize += poses.length() * sizeof(pose);
     hdr.num_anims = anims.length(); if(anims.length()) hdr.ofs_anims = hdr.filesize; hdr.filesize += anims.length() * sizeof(anim);
     hdr.num_frames = poses.length() ? frames.length()/poses.length() : 0; hdr.num_framechannels = framesize; 
-    if(animdata.length()) hdr.ofs_frames = hdr.filesize; hdr.filesize += animdata.length() * sizeof(ushort); 
-    if(bounds.length()) hdr.ofs_bounds = hdr.filesize; hdr.filesize += bounds.length() * sizeof(float[8]);
-    if(commentdata.length()) hdr.ofs_comment = hdr.filesize; hdr.num_comment = commentdata.length(); hdr.filesize += hdr.num_comment;
+    if(animdata.length()) { hdr.ofs_frames = hdr.filesize; } hdr.filesize += animdata.length() * sizeof(ushort); 
+    if(bounds.length()) { hdr.ofs_bounds = hdr.filesize; } hdr.filesize += bounds.length() * sizeof(float[8]);
+    if(commentdata.length()) { hdr.ofs_comment = hdr.filesize; } hdr.num_comment = commentdata.length(); hdr.filesize += hdr.num_comment;
 
     lilswap(&hdr.version, (sizeof(hdr) - sizeof(hdr.magic))/sizeof(uint));
     f->write(&hdr, sizeof(hdr));
