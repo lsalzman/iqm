@@ -821,7 +821,6 @@ static inline uint hthash(const Vec3 &k)
     uint h = hthash(k.x);
     h = htcombine(h, k.y);
     h = htcombine(h, k.z);
-    h = htcombine(h, k.z);
     return h;
 }
 
@@ -888,7 +887,6 @@ static inline uint hthash(const Vec4 &k)
 {
     uint h = hthash(k.x);
     h = htcombine(h, k.y);
-    h = htcombine(h, k.z);
     h = htcombine(h, k.z);
     h = htcombine(h, k.w);
     return h;
