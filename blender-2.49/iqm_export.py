@@ -636,11 +636,11 @@ def collectBones(armature, scale):
 
 
 def collectAnim(armature, scale, bones, action, startframe = None, endframe = None):
-    if not startframe or not endframe:
+    if startframe is None or endframe is None:
         frames = action.getFrameNumbers()
-        if not startframe:
+        if startframe is None:
             startframe = min(frames)
-        if not endframe:
+        if endframe is None:
             endframe = max(frames)
     print 'Exporting action "%s" frames %d-%d' % (action.getName(), startframe, endframe)
     scene = Blender.Scene.GetCurrent()
