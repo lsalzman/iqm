@@ -738,7 +738,7 @@ def collectBones(context, armature, scale):
 
 
 def collectAnim(context, armature, scale, bones, action, startframe = None, endframe = None):
-    if not startframe or not endframe:
+    if startframe is None or endframe is None:
         startframe, endframe = action.frame_range
         startframe = int(startframe)
         endframe = int(endframe)
