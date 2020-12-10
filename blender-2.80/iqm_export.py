@@ -1124,10 +1124,22 @@ class ExportIQM(bpy.types.Operator, bpy_extras.io_utils.ExportHelper):
         settings = bpy.context.scene['iqm_exporter_settings']
         if 'animspec' in settings:
             self.animspec = settings['animspec']
+        if 'usemesh' in settings:
+            self.usemesh = settings['usemesh']
+        if 'usemods' in settings:
+            self.usemods = settings['usemods']
+        if 'useskel' in settings:
+            self.useskel = settings['useskel']
+        if 'usecol' in settings:
+            self.usecol = settings['usecol']
         if 'usescale' in settings:
             self.usescale = settings['usescale']
+        if 'matfmt' in settings:
+            self.matfmt = settings['matfmt']
         if 'derigify' in settings:
             self.derigify = settings['derigify']
+        if 'boneorder' in settings:
+            self.boneorder = settings['boneorder']
         if 'filepath' in settings:
             self.properties.filepath = settings['filepath']
 
@@ -1148,8 +1160,14 @@ class ExportIQM(bpy.types.Operator, bpy_extras.io_utils.ExportHelper):
 
         # Save settings in scene
         settings['animspec'] = self.animspec
+        settings['usemesh'] = self.usemesh
+        settings['usemods'] = self.usemods
+        settings['useskel'] = self.useskel
+        settings['usecol'] = self.usecol
         settings['usescale'] = self.usescale
+        settings['matfmt'] = self.matfmt
         settings['derigify'] = self.derigify
+        settings['boneorder'] = self.boneorder
         settings['filepath'] = self.properties.filepath
         bpy.context.window_manager.popup_menu(drawSuccessMessage,
                                               title='Export finished',
