@@ -1096,12 +1096,15 @@ def exportIQM(context, filename, usemesh = True, usemods = False, useskel = True
     else:
         print('No %s file was generated' % (filetype))
 
+def drawSuccessMessage(self, context):
+  self.layout.label(text='Exporting successfull!')
 
 class ExportIQM(bpy.types.Operator, bpy_extras.io_utils.ExportHelper):
     '''Export an Inter-Quake Model IQM or IQE file'''
     bl_idname = "export.iqm"
     bl_label = 'Export IQM'
     filename_ext = ".iqm"
+
     animspec = bpy.props.StringProperty(name="Animations", description="Animations to export", maxlen=1024, default="")
     usemesh = bpy.props.BoolProperty(name="Meshes", description="Generate meshes", default=True)
     usemods = bpy.props.BoolProperty(name="Modifiers", description="Apply modifiers", default=True)
@@ -1114,14 +1117,62 @@ class ExportIQM(bpy.types.Operator, bpy_extras.io_utils.ExportHelper):
     derigify = bpy.props.BoolProperty(name="De-rigify", description="Export only deformation bones from rigify", default=False)
     boneorder = bpy.props.StringProperty(name="Bone order", description="Override ordering of bones", subtype="FILE_NAME", default="")
 
+    def __init__(self):
+        if 'iqm_exporter_settings' not in bpy.context.scene:
+          bpy.context.scene['iqm_exporter_settings'] = {}
+
+        settings = bpy.context.scene['iqm_exporter_settings']
+        if 'animspec' in settings:
+            self.animspec = settings['animspec']
+        if 'usemesh' in settings:
+            self.usemesh = settings['usemesh']
+        if 'usemods' in settings:
+            self.usemods = settings['usemods']
+        if 'useskel' in settings:
+            self.useskel = settings['useskel']
+        if 'usecol' in settings:
+            self.usecol = settings['usecol']
+        if 'usescale' in settings:
+            self.usescale = settings['usescale']
+        if 'matfmt' in settings:
+            self.matfmt = settings['matfmt']
+        if 'derigify' in settings:
+            self.derigify = settings['derigify']
+        if 'boneorder' in settings:
+            self.boneorder = settings['boneorder']
+        if 'filepath' in settings:
+            self.properties.filepath = settings['filepath']
+
     def execute(self, context):
+        settings = context.scene['iqm_exporter_settings']
         if self.properties.matfmt == "m+i-e":
             matfun = lambda prefix, image: prefix + os.path.splitext(image)[0]
         elif self.properties.matfmt == "m":
             matfun = lambda prefix, image: prefix
         else:
             matfun = lambda prefix, image: image
-        exportIQM(context, self.properties.filepath, self.properties.usemesh, self.properties.usemods, self.properties.useskel, self.properties.usebbox, self.properties.usecol, self.properties.usescale, self.properties.animspec, matfun, self.properties.derigify, self.properties.boneorder)
+
+        exportIQM(context, self.properties.filepath, self.properties.usemesh,
+                  self.properties.usemods, self.properties.useskel,
+                  self.properties.usebbox, self.properties.usecol,
+                  self.properties.usescale, self.properties.animspec,
+                  matfun, self.properties.derigify, self.properties.boneorder)
+
+        # Save settings in scene
+        settings['animspec'] = self.animspec
+        settings['usemesh'] = self.usemesh
+        settings['usemods'] = self.usemods
+        settings['useskel'] = self.useskel
+        settings['usecol'] = self.usecol
+        settings['usescale'] = self.usescale
+        settings['matfmt'] = self.matfmt
+        settings['derigify'] = self.derigify
+        settings['boneorder'] = self.boneorder
+        settings['filepath'] = self.properties.filepath
+        bpy.context.window_manager.popup_menu(drawSuccessMessage,
+                                              title='Export finished',
+                                              icon='INFO')
+
         return {'FINISHED'}
 
     def check(self, context):
@@ -1133,10 +1184,8 @@ class ExportIQM(bpy.types.Operator, bpy_extras.io_utils.ExportHelper):
         return False
 
 
-
 def menu_func(self, context):
     self.layout.operator(ExportIQM.bl_idname, text="Inter-Quake Model (.iqm, .iqe)")
-
 
 def register():
     bpy.utils.register_class(ExportIQM)
