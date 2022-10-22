@@ -868,7 +868,6 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
                 except:
                     matname = matnames.get(matindex, '')
                     mesh = Mesh(obj.name, matname, data.vertices)
-                    meshes.append(mesh)
                     materials[obj.name, matindex] = mesh
 
                 verts = mesh.verts
@@ -946,6 +945,11 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
                 # Quake winding is reversed
                 for i in range(2, len(faceverts)):
                     mesh.tris.append((faceverts[0], faceverts[i], faceverts[i-1])) 
+            # Export materials in the order of their assigned index
+            for i in range(len(matnames)):
+                mesh = materials.get((obj.name, i))
+                if mesh:
+                    meshes.append(mesh)
  
     for mesh in meshes:
         mesh.optimize()
