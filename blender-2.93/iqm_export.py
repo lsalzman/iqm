@@ -812,7 +812,7 @@ def collectAnims(context, armature, scale, bones, animspecs):
     return anims
 
  
-def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False, usemods = False, filetype = 'IQM'):
+def collectMeshes(context, bones, scale, matfun, useweights = True, usecol = False, usemods = False, filetype = 'IQM'):
     vertwarn = []
     objs = context.selected_objects #context.scene.objects
     meshes = []
@@ -906,7 +906,7 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
                             vertcol = (255, 255, 255, int(round(vertalpha[0] * 255.0)))
 
                     vertweights = []
-                    if useskel:
+                    if useweights:
                         for g in v.groups:
                             try:
                                 vertweights.append((g.weight, bones[groups[g.group].name].index))
@@ -1018,9 +1018,9 @@ def exportIQE(file, meshes, bones, anims):
     file.write('\n')
 
 
-def exportIQM(context, filename, usemesh = True, usemods = False, useskel = True, usebbox = True, usecol = False, scale = 1.0, animspecs = None, matfun = (lambda prefix, image: image), derigify = False, boneorder = None):
+def exportIQM(context, filename, usemesh = True, useweights = True, usemods = False, useskel = True, usebbox = True, usecol = False, scale = 1.0, animspecs = None, matfun = (lambda prefix, image: image), derigify = False, boneorder = None):
     armature = findArmature(context)
-    if useskel and not armature:
+    if (useskel or useweights) and not armature:
         print('No armature selected')
         return
 
@@ -1032,7 +1032,7 @@ def exportIQM(context, filename, usemesh = True, usemods = False, useskel = True
         print('Unknown file type: %s' % filename)
         return
 
-    if useskel:
+    if useskel or useweights:
         if derigify:
             bones = derigifyBones(context, armature, scale)
         else:
@@ -1062,7 +1062,7 @@ def exportIQM(context, filename, usemesh = True, usemods = False, useskel = True
 
     bonelist = sorted(bones.values(), key = lambda bone: bone.index)
     if usemesh:
-        meshes = collectMeshes(context, bones, scale, matfun, useskel, usecol, usemods, filetype)
+        meshes = collectMeshes(context, bones, scale, matfun, useweights, usecol, usemods, filetype)
     else:
         meshes = []
 
@@ -1111,6 +1111,7 @@ class ExportIQM(bpy.types.Operator, bpy_extras.io_utils.ExportHelper):
     usemods: bpy.props.BoolProperty(name="Modifiers", description="Apply modifiers", default=True)
     useskel: bpy.props.BoolProperty(name="Skeleton", description="Generate skeleton", default=True)
     usebbox: bpy.props.BoolProperty(name="Bounding boxes", description="Generate bounding boxes", default=True)
+    useweights: bpy.props.BoolProperty(name="Vertex weights", description="Export vertex weights", default=True)
     usecol: bpy.props.BoolProperty(name="Vertex colors", description="Export vertex colors", default=False)
     usescale: bpy.props.FloatProperty(name="Scale", description="Scale of exported model", default=1.0, min=0.0, step=50, precision=2)
     #usetrans: bpy.props.FloatVectorProperty(name="Translate", description="Translate position of exported model", step=50, precision=2, size=3)
@@ -1125,7 +1126,7 @@ class ExportIQM(bpy.types.Operator, bpy_extras.io_utils.ExportHelper):
             matfun = lambda prefix, image: prefix
         else:
             matfun = lambda prefix, image: image
-        exportIQM(context, self.properties.filepath, self.properties.usemesh, self.properties.usemods, self.properties.useskel, self.properties.usebbox, self.properties.usecol, self.properties.usescale, self.properties.animspec, matfun, self.properties.derigify, self.properties.boneorder)
+        exportIQM(context, self.properties.filepath, self.properties.usemesh, self.properties.useweights, self.properties.usemods, self.properties.useskel, self.properties.usebbox, self.properties.usecol, self.properties.usescale, self.properties.animspec, matfun, self.properties.derigify, self.properties.boneorder)
         return {'FINISHED'}
 
     def check(self, context):
