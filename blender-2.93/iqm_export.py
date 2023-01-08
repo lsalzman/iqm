@@ -812,7 +812,7 @@ def collectAnims(context, armature, scale, bones, animspecs):
     return anims
 
  
-def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False, usemods = False, filetype = 'IQM'):
+def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False, usemods = False, filetype = 'IQM', namedmaterialmeshes=False):
     vertwarn = []
     objs = context.selected_objects #context.scene.objects
     meshes = []
@@ -867,7 +867,13 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
                     mesh = materials[obj.name, matindex] 
                 except:
                     matname = matnames.get(matindex, '')
-                    mesh = Mesh(obj.name, matname, data.vertices)
+                    if namedmaterialmeshes and matname:
+                        newmeshname = f"{obj.name}_{matname}"
+                    else:
+                        newmeshname = obj.name
+
+                    mesh = Mesh(newmeshname, matname, data.vertices)
+                    meshes.append(mesh)
                     materials[obj.name, matindex] = mesh
 
                 verts = mesh.verts
@@ -1018,7 +1024,7 @@ def exportIQE(file, meshes, bones, anims):
     file.write('\n')
 
 
-def exportIQM(context, filename, usemesh = True, usemods = False, useskel = True, usebbox = True, usecol = False, scale = 1.0, animspecs = None, matfun = (lambda prefix, image: image), derigify = False, boneorder = None):
+def exportIQM(context, filename, usemesh = True, usemods = False, useskel = True, usebbox = True, usecol = False, scale = 1.0, animspecs = None, matfun = (lambda prefix, image: image), derigify = False, boneorder = None, namedmaterialmeshes=False):
     armature = findArmature(context)
     if useskel and not armature:
         print('No armature selected')
@@ -1062,7 +1068,7 @@ def exportIQM(context, filename, usemesh = True, usemods = False, useskel = True
 
     bonelist = sorted(bones.values(), key = lambda bone: bone.index)
     if usemesh:
-        meshes = collectMeshes(context, bones, scale, matfun, useskel, usecol, usemods, filetype)
+        meshes = collectMeshes(context, bones, scale, matfun, useskel, usecol, usemods, filetype, namedmaterialmeshes)
     else:
         meshes = []
 
@@ -1116,6 +1122,7 @@ class ExportIQM(bpy.types.Operator, bpy_extras.io_utils.ExportHelper):
     #usetrans: bpy.props.FloatVectorProperty(name="Translate", description="Translate position of exported model", step=50, precision=2, size=3)
     matfmt: bpy.props.EnumProperty(name="Materials", description="Material name format", items=[("m+i-e", "material+image-ext", ""), ("m", "material", ""), ("i", "image", "")], default="m+i-e")
     derigify: bpy.props.BoolProperty(name="De-rigify", description="Export only deformation bones from rigify", default=False)
+    namedmaterialmeshes: bpy.props.BoolProperty(name="Named material meshes", description="Append material names to individual exported mesh objects, for meshes with multiple materials", default=False)
     boneorder: bpy.props.StringProperty(name="Bone order", description="Override ordering of bones", subtype="FILE_NAME", default="")
 
     def execute(self, context):
@@ -1125,7 +1132,7 @@ class ExportIQM(bpy.types.Operator, bpy_extras.io_utils.ExportHelper):
             matfun = lambda prefix, image: prefix
         else:
             matfun = lambda prefix, image: image
-        exportIQM(context, self.properties.filepath, self.properties.usemesh, self.properties.usemods, self.properties.useskel, self.properties.usebbox, self.properties.usecol, self.properties.usescale, self.properties.animspec, matfun, self.properties.derigify, self.properties.boneorder)
+        exportIQM(context, self.properties.filepath, self.properties.usemesh, self.properties.usemods, self.properties.useskel, self.properties.usebbox, self.properties.usecol, self.properties.usescale, self.properties.animspec, matfun, self.properties.derigify, self.properties.boneorder, self.properties.namedmaterialmeshes)
         return {'FINISHED'}
 
     def check(self, context):
