@@ -847,6 +847,9 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
                         colors = layer.data
             if data.materials:
                 for idx, mat in enumerate(data.materials):
+                    if not mat:
+                        continue
+
                     matprefix = mat.name or ''
                     matimage = ''
                     if mat.node_tree:
