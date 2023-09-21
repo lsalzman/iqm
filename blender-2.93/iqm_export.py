@@ -3,7 +3,7 @@
 bl_info = {
     "name": "Export Inter-Quake Model (.iqm/.iqe)",
     "author": "Lee Salzman",
-    "version": (2022, 10, 21),
+    "version": (2023, 9, 21),
     "blender": (2, 93, 0),
     "location": "File > Export > Inter-Quake Model",
     "description": "Export to the Inter-Quake Model format (.iqm/.iqe)",
@@ -812,7 +812,7 @@ def collectAnims(context, armature, scale, bones, animspecs):
     return anims
 
  
-def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False, usemods = False, filetype = 'IQM', namedmaterialmeshes=False):
+def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False, usemods = False, filetype = 'IQM', namedmaterialmeshes = False):
     vertwarn = []
     objs = context.selected_objects #context.scene.objects
     meshes = []
@@ -874,9 +874,7 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
                         newmeshname = f"{obj.name}_{matname}"
                     else:
                         newmeshname = obj.name
-
                     mesh = Mesh(newmeshname, matname, data.vertices)
-                    meshes.append(mesh)
                     materials[obj.name, matindex] = mesh
 
                 verts = mesh.verts
@@ -1027,7 +1025,7 @@ def exportIQE(file, meshes, bones, anims):
     file.write('\n')
 
 
-def exportIQM(context, filename, usemesh = True, usemods = False, useskel = True, usebbox = True, usecol = False, scale = 1.0, animspecs = None, matfun = (lambda prefix, image: image), derigify = False, boneorder = None, namedmaterialmeshes=False):
+def exportIQM(context, filename, usemesh = True, usemods = False, useskel = True, usebbox = True, usecol = False, scale = 1.0, animspecs = None, matfun = (lambda prefix, image: image), derigify = False, boneorder = None, namedmaterialmeshes = False):
     armature = findArmature(context)
     if useskel and not armature:
         print('No armature selected')
