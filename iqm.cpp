@@ -1216,8 +1216,7 @@ bool resetimporter(bool reuse = false)
     eanims.setsize(0);
     emeshes.setsize(0);
     evarrays.setsize(0);
-    erotate = Quat(0, 0, 0, 1);
-
+    
     return true;
 }
 
@@ -3365,7 +3364,8 @@ bool loadfbx(const char *filename, const filespec &spec)
         a.startframe += spec.startframe;
     }
 
-    erotate = Quat(M_PI/2, Vec3(1, 0, 0));
+    Quat old_erotate = erotate ;
+    erotate += Quat(M_PI/2, Vec3(1, 0, 0));
 
     if(emeshes.length())
     {
@@ -3373,6 +3373,8 @@ bool loadfbx(const char *filename, const filespec &spec)
         makemeshes();
     }
     makeanims();
+
+    erotate = old_erotate;
 
     return true;
 }
@@ -3631,6 +3633,11 @@ void help(bool exitstatus = EXIT_SUCCESS)
 "    --meshtrans X,Y,Z\n"
 "      Translates a mesh by X,Y,Z (floats). This does not affect the skeleton.\n"
 "\n"
+"    --meshrot ANGLE AXIS\n"
+"      rotate a mesh by ANGLE in degrees (float), on the AXIS named X,Y or Z.\n"
+"      This affect the skeleton.\n"
+"      Example : --meshrot 90 X\n"
+"\n"
 "    -j\n"
 "    --forcejoints\n"
 "      Forces the exporting of joint information in animation files without\n"
@@ -3686,6 +3693,32 @@ int main(int argc, char **argv)
                     {
                         case 1: emeshtrans = Vec3(0, 0, emeshtrans.x); break;
                     }
+                }
+                else if(!strcasecmp(&argv[i][2], "meshrot"))
+                {
+                    double angle = 0.0;
+                    Vec3 axis(0, 0, 0);
+
+                    if(i + 1 < argc) sscanf(argv[++i], "%lf" , &angle);
+                    if(i + 1 < argc) switch( argv[++i][0] )
+                    {
+                        case 'X':
+                        case 'x':
+                            axis.x = 1.0;
+                        break;
+                        case 'Y':
+                        case 'y':
+                            axis.y = 1.0;
+                        break;
+                        case 'Z':
+                        case 'z':
+                            axis.z = 1.0;
+                        break;
+                        default:
+                            help(EXIT_FAILURE);
+                    }
+
+                    erotate = Quat( M_PI * angle / 180.0 , axis);
                 }
             }
             else switch(argv[i][1])
