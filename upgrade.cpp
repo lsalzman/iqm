@@ -307,30 +307,30 @@ bool writeiqm(const char *outfile)
     ohdr.filesize = sizeof(ohdr);
     ohdr.version = IQM_VERSION;
 
-    if(str.length()) ohdr.ofs_text = ohdr.filesize; ohdr.num_text = str.length(); ohdr.filesize += str.length();
-    ohdr.num_meshes = meshes.length(); if(meshes.length()) ohdr.ofs_meshes = ohdr.filesize; ohdr.filesize += meshes.length() * sizeof(iqmmesh);
+    if(str.length()) { ohdr.ofs_text = ohdr.filesize; ohdr.num_text = str.length(); ohdr.filesize += str.length(); }
+    ohdr.num_meshes = meshes.length(); if(meshes.length()) { ohdr.ofs_meshes = ohdr.filesize; ohdr.filesize += meshes.length() * sizeof(iqmmesh); }
 
     uint voffset = ohdr.filesize + vertexarrays.length() * sizeof(iqmvertexarray);
-    ohdr.num_vertexarrays = vertexarrays.length(); if(vertexarrays.length()) ohdr.ofs_vertexarrays = ohdr.filesize; ohdr.filesize += vertexarrays.length() * sizeof(iqmvertexarray);
+    ohdr.num_vertexarrays = vertexarrays.length(); if(vertexarrays.length()) { ohdr.ofs_vertexarrays = ohdr.filesize; ohdr.filesize += vertexarrays.length() * sizeof(iqmvertexarray); }
     uint valign = (8 - (ohdr.filesize%8))%8;
     voffset += valign;
     ohdr.filesize += valign + vdata.length();
     ohdr.num_vertexes = hdr.num_vertexes;
 
-    ohdr.num_triangles = triangles.length(); if(triangles.length()) ohdr.ofs_triangles = ohdr.filesize; ohdr.filesize += triangles.length() * sizeof(iqmtriangle);
-        if(adjacency.length()) ohdr.ofs_adjacency = ohdr.filesize; ohdr.filesize += adjacency.length() * sizeof(iqmtriangle);
+    ohdr.num_triangles = triangles.length(); if(triangles.length()) { ohdr.ofs_triangles = ohdr.filesize; ohdr.filesize += triangles.length() * sizeof(iqmtriangle); }
+    if(adjacency.length()) { ohdr.ofs_adjacency = ohdr.filesize; ohdr.filesize += adjacency.length() * sizeof(iqmtriangle); }
 
-    ohdr.num_joints = joints.length(); if(joints.length()) ohdr.ofs_joints = ohdr.filesize; ohdr.filesize += joints.length() * sizeof(iqmjoint);
+    ohdr.num_joints = joints.length(); if(joints.length()) { ohdr.ofs_joints = ohdr.filesize; ohdr.filesize += joints.length() * sizeof(iqmjoint); }
 
-    ohdr.num_poses = poses.length(); if(poses.length()) ohdr.ofs_poses = ohdr.filesize; ohdr.filesize += poses.length() * sizeof(iqmpose);
+    ohdr.num_poses = poses.length(); if(poses.length()) { ohdr.ofs_poses = ohdr.filesize; ohdr.filesize += poses.length() * sizeof(iqmpose); }
 
-    ohdr.num_anims = anims.length(); if(anims.length()) ohdr.ofs_anims = ohdr.filesize; ohdr.filesize += anims.length() * sizeof(iqmanim);
+    ohdr.num_anims = anims.length(); if(anims.length()) { ohdr.ofs_anims = ohdr.filesize; ohdr.filesize += anims.length() * sizeof(iqmanim); }
 
-    ohdr.num_frames = poses.length() ? hdr.num_frames : 0; ohdr.num_framechannels = poses.length() ? hdr.num_framechannels : 0; if(frames.length()) ohdr.ofs_frames = ohdr.filesize; ohdr.filesize += frames.length() * sizeof(ushort); 
+    ohdr.num_frames = poses.length() ? hdr.num_frames : 0; ohdr.num_framechannels = poses.length() ? hdr.num_framechannels : 0; if(frames.length()) { ohdr.ofs_frames = ohdr.filesize; ohdr.filesize += frames.length() * sizeof(ushort); }
 
-    if(bounds.length()) ohdr.ofs_bounds = ohdr.filesize; ohdr.filesize += bounds.length() * sizeof(iqmbounds);
+    if(bounds.length()) { ohdr.ofs_bounds = ohdr.filesize; ohdr.filesize += bounds.length() * sizeof(iqmbounds); }
 
-    if(comment.length()) ohdr.ofs_comment = ohdr.filesize; ohdr.num_comment = comment.length(); ohdr.filesize += comment.length();
+    if(comment.length()) { ohdr.ofs_comment = ohdr.filesize; ohdr.num_comment = comment.length(); ohdr.filesize += comment.length(); }
 
     lilswap(&ohdr.version, (sizeof(ohdr) - sizeof(ohdr.magic))/sizeof(uint));
     f->write(&ohdr, sizeof(ohdr));
