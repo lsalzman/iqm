@@ -970,7 +970,7 @@ void makeneighbors()
 Quat erotate(0, 0, 0, 1);
 double escale = 1;
 Vec3 emeshtrans(0, 0, 0);
-    
+
 void makemeshes()
 {
     meshes.setsize(0);
@@ -1216,7 +1216,6 @@ bool resetimporter(bool reuse = false)
     eanims.setsize(0);
     emeshes.setsize(0);
     evarrays.setsize(0);
-    erotate = Quat(0, 0, 0, 1);
 
     return true;
 }
@@ -3365,7 +3364,8 @@ bool loadfbx(const char *filename, const filespec &spec)
         a.startframe += spec.startframe;
     }
 
-    erotate = Quat(M_PI/2, Vec3(1, 0, 0));
+    Quat oldrotate = erotate;
+    erotate *= Quat(M_PI/2, Vec3(1, 0, 0));
 
     if(emeshes.length())
     {
@@ -3373,6 +3373,8 @@ bool loadfbx(const char *filename, const filespec &spec)
         makemeshes();
     }
     makeanims();
+
+    erotate = oldrotate;
 
     return true;
 }
@@ -3627,9 +3629,15 @@ void help(bool exitstatus = EXIT_SUCCESS)
 "    --scale N\n"
 "      Sets the output scale to N (float).\n"
 "\n"
+"    -t Z\n"
+"    -t X,Y,Z\n"
 "    --meshtrans Z\n"
 "    --meshtrans X,Y,Z\n"
 "      Translates a mesh by X,Y,Z (floats). This does not affect the skeleton.\n"
+"\n"
+"    -r X,Y,Z\n"
+"    --rotate X,Y,Z\n"
+"      Rotate by Euler angles X,Y,Z in degrees (floats).\n"
 "\n"
 "    -j\n"
 "    --forcejoints\n"
@@ -3677,14 +3685,38 @@ int main(int argc, char **argv)
                 else if(!strcasecmp(&argv[i][2], "loop")) { inspec.flags |= IQM_LOOP; }
                 else if(!strcasecmp(&argv[i][2], "start")) { if(i + 1 < argc) inspec.startframe = max(atoi(argv[++i]), 0); }
                 else if(!strcasecmp(&argv[i][2], "end")) { if(i + 1 < argc) inspec.endframe = atoi(argv[++i]); }
-                else if(!strcasecmp(&argv[i][2], "scale")) { if(i + 1 < argc) escale = clamp(atof(argv[++i]), 1e-8, 1e8); }
+                else if(!strcasecmp(&argv[i][2], "scale"))
+                {
+                option_scale:
+                    if(i + 1 < argc) escale *= clamp(atof(argv[++i]), 1e-8, 1e8);
+                }
                 else if(!strcasecmp(&argv[i][2], "help")) help();
-                else if(!strcasecmp(&argv[i][2], "forcejoints")) forcejoints = true;
+                else if(!strcasecmp(&argv[i][2], "forcejoints"))
+                {
+                option_forcejoints:
+                    forcejoints = true;
+                }
                 else if(!strcasecmp(&argv[i][2], "meshtrans"))
                 {
-                    if(i + 1 < argc) switch(sscanf(argv[++i], "%lf , %lf , %lf", &emeshtrans.x, &emeshtrans.y, &emeshtrans.z))
+                option_meshtrans:
+                    Vec3 delta(0, 0, 0);
+                    if(i + 1 < argc) switch(sscanf(argv[++i], "%lf , %lf , %lf", &delta.x, &delta.y, &delta.z))
                     {
-                        case 1: emeshtrans = Vec3(0, 0, emeshtrans.x); break;
+                        case 1: emeshtrans += Vec3(0, 0, delta.x); break;
+                        default: emeshtrans += delta; break;
+                    }
+                }
+                else if(!strcasecmp(&argv[i][2], "rotate"))
+                {
+                option_rotate:
+                    Vec3 angles(0, 0, 0);
+                    if(i + 1 < argc) switch(sscanf(argv[++i], "%lf , %lf , %lf", &angles.x, &angles.y, &angles.z))
+                    {
+                        case 1:
+                        case 2:
+                        case 3:
+                            erotate *= Quat::fromangles(angles);
+                            break;
                     }
                 }
             }
@@ -3693,12 +3725,10 @@ int main(int argc, char **argv)
             case 'h':
                 help();
                 break;
-            case 's':
-                if(i + 1 < argc) escale = clamp(atof(argv[++i]), 1e-8, 1e8);
-                break;
-            case 'j':
-                forcejoints = true;
-                break;
+            case 's': goto option_scale;
+            case 't': goto option_meshtrans;
+            case 'r': goto option_rotate;
+            case 'j': goto option_forcejoints;
             }
         }
         else if(!outfile) outfile = argv[i];
@@ -3714,6 +3744,7 @@ int main(int argc, char **argv)
 
     if(escale != 1) printf("scale: %f\n", escale);
     if(emeshtrans != Vec3(0, 0, 0)) printf("mesh translate: %f, %f, %f\n", emeshtrans.x, emeshtrans.y, emeshtrans.z);
+    if(erotate != Quat(0, 0, 0, 1)) printf("rotate: %f, %f, %f, %f\n", erotate.x, erotate.y, erotate.z, erotate.w);
 
     loopv(infiles)
     {

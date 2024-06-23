@@ -1,4 +1,4 @@
-IQM Developer Kit 2024-05-10
+IQM Developer Kit 2024-06-23
 
 *** Format information ***
 
@@ -43,9 +43,15 @@ Options can be any of the following command-line switches:
 --scale N
   Sets the output scale to N (float).
 
+-t Z
+-t X,Y,Z
 --meshtrans Z
 --meshtrans X,Y,Z
   Translates a mesh by X,Y,Z (floats). This does not affect the skeleton.
+
+-r X,Y,Z
+--rotate X,Y,Z
+  Rotate by Euler angles X,Y,Z in degrees (floats).
 
 -j
 --forcejoints
