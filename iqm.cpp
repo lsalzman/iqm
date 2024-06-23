@@ -3715,7 +3715,7 @@ int main(int argc, char **argv)
                         case 1:
                         case 2:
                         case 3:
-                            erotate *= Quat::fromangles(angles);
+                            erotate *= Quat::fromdegrees(angles);
                             break;
                     }
                 }
