@@ -3,7 +3,7 @@
 bl_info = {
     "name": "Export Inter-Quake Model (.iqm/.iqe)",
     "author": "Lee Salzman",
-    "version": (2024, 5, 10),
+    "version": (2025, 7, 24),
     "blender": (4, 1, 0),
     "location": "File > Export > Inter-Quake Model",
     "description": "Export to the Inter-Quake Model format (.iqm/.iqe)",
@@ -229,7 +229,7 @@ class Bone:
         self.matrix = matrix
         self.localmatrix = matrix
         if self.parent:
-            self.localmatrix = parent.matrix.inverted() @ self.localmatrix
+            self.localmatrix = parent.matrix.inverted_safe() @ self.localmatrix
         self.numchannels = 0
         self.channelmask = 0
         self.channeloffsets = [ 1.0e10, 1.0e10, 1.0e10, 1.0e10, 1.0e10, 1.0e10, 1.0e10, 1.0e10, 1.0e10, 1.0e10 ]
@@ -386,7 +386,7 @@ class Animation:
     def boundsData(self, bones, meshes):
         invbase = []
         for bone in bones:
-            invbase.append(bone.matrix.inverted())
+            invbase.append(bone.matrix.inverted_safe())
         data = b''
         for i, frame in enumerate(self.frames):
             print('Calculating bounding box for %s:%d' % (self.name, i))
@@ -754,13 +754,13 @@ def collectAnim(context, armature, scale, bones, action, startframe = None, endf
         for bone in bones:
             posematrix = pose.bones[bone.origname].matrix
             if bone.parent:
-                posematrix = pose.bones[bone.parent.origname].matrix.inverted() @ posematrix
+                posematrix = pose.bones[bone.parent.origname].matrix.inverted_safe() @ posematrix
             else:
                 posematrix = worldmatrix @ posematrix
             if scale != 1.0:
                 posematrix.translation *= scale
             loc = posematrix.to_translation()
-            quat = posematrix.to_3x3().inverted().transposed().to_quaternion()
+            quat = posematrix.to_3x3().inverted_safe().transposed().to_quaternion()
             quat.normalize()
             if quat.w > 0:
                 quat.negate()
@@ -823,7 +823,7 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
             if not data.polygons:
                 continue
             coordmatrix = obj.matrix_world
-            normalmatrix = coordmatrix.inverted().transposed()
+            normalmatrix = coordmatrix.inverted_safe().transposed()
             if scale != 1.0:
                 coordmatrix = mathutils.Matrix.Scale(scale, 4) @ coordmatrix 
             materials = {}
