@@ -119,7 +119,7 @@ class Mesh:
         self.tris      = []
    
     def calcTangents(self):
-        # See "Tangent Space Calculation" at http://www.terathon.com/code/tangent.html
+        # See "Tangent Space Calculation" at http://www.terathon.com/code/tangent.html  
         for v in self.verts:
             v.tangent = mathutils.Vector((0.0, 0.0, 0.0))
             v.bitangent = mathutils.Vector((0.0, 0.0, 0.0))
@@ -723,52 +723,70 @@ def derigifyBones(context, armature, scale):
 def collectBones(context, armature, scale):
     data = armature.data
     bones = {}
-    worldmatrix = armature.matrix_world
-    worklist = [ bone for bone in data.bones.values() if not bone.parent ]
+    worklist = [bone for bone in data.bones.values() if not bone.parent]
+
     for index, bone in enumerate(worklist):
-        bonematrix = worldmatrix @ bone.matrix_local
+        # Use bone.matrix_local only — no worldmatrix
+        bonematrix = bone.matrix_local.copy()
+
         if scale != 1.0:
             bonematrix.translation *= scale
+            for i in range(3):
+                bonematrix[i][0] *= scale
+                bonematrix[i][1] *= scale
+                bonematrix[i][2] *= scale
+
         bones[bone.name] = Bone(bone.name, bone.name, index, bone.parent and bones.get(bone.parent.name), bonematrix)
         for child in bone.children:
             if child not in worklist:
                 worklist.append(child)
+
     print('Collected %d bones' % len(worklist))
     return bones
 
 
-def collectAnim(context, armature, scale, bones, action, startframe = None, endframe = None):
+def collectAnim(context, armature, scale, bones, action, startframe=None, endframe=None):
     if startframe is None or endframe is None:
         startframe, endframe = action.frame_range
         startframe = int(startframe)
         endframe = int(endframe)
     print('Exporting action "%s" frames %d-%d' % (action.name, startframe, endframe))
     scene = context.scene
-    worldmatrix = armature.matrix_world
-    armature.animation_data.action = action
     outdata = []
-    for time in range(startframe, endframe+1):
+    for time in range(startframe, endframe + 1):
         scene.frame_set(time)
         pose = armature.pose
         outframe = []
         for bone in bones:
-            posematrix = pose.bones[bone.origname].matrix
+            # Get pose matrix in armature-local space
+            posematrix = pose.bones[bone.origname].matrix.copy()
+
             if bone.parent:
-                posematrix = pose.bones[bone.parent.origname].matrix.inverted_safe() @ posematrix
+                # Convert to parent-relative using parent's pose matrix
+                parent_matrix = pose.bones[bone.parent.origname].matrix
+                posematrix = parent_matrix.inverted_safe() @ posematrix
             else:
-                posematrix = worldmatrix @ posematrix
+                # Root bone: keep in armature-local space
+                pass
+
             if scale != 1.0:
                 posematrix.translation *= scale
+                for i in range(3):
+                    posematrix[i][0] *= scale
+                    posematrix[i][1] *= scale
+                    posematrix[i][2] *= scale
+
             loc = posematrix.to_translation()
-            quat = posematrix.to_3x3().inverted_safe().transposed().to_quaternion()
-            quat.normalize()
-            if quat.w > 0:
-                quat.negate()
-            pscale = posematrix.to_scale()
-            pscale.x = round(pscale.x*0x10000)/0x10000
-            pscale.y = round(pscale.y*0x10000)/0x10000
-            pscale.z = round(pscale.z*0x10000)/0x10000
-            outframe.append((loc, quat, pscale, posematrix))
+            rot = posematrix.to_3x3().to_quaternion()
+            rot.normalize()
+            if rot.w > 0:
+                rot.negate()
+            scl = posematrix.to_scale()
+            scl.x = round(scl.x * 0x10000) / 0x10000
+            scl.y = round(scl.y * 0x10000) / 0x10000
+            scl.z = round(scl.z * 0x10000) / 0x10000
+
+            outframe.append((loc, rot, scl, posematrix))
         outdata.append(outframe)
     return outdata
 
@@ -778,41 +796,57 @@ def collectAnims(context, armature, scale, bones, animspecs):
         print('Armature has no animation data')
         return []
     actions = bpy.data.actions
-    animspecs = [ spec.strip() for spec in animspecs.split(',') ]
+
+    if len(animspecs) > 0:
+        animspecs =  [ spec.strip() for spec in animspecs.split(',') ]
+
     anims = []
     scene = context.scene
     oldaction = armature.animation_data.action
     oldframe = scene.frame_current
-    for animspec in animspecs:
-        animspec = [ arg.strip() for arg in animspec.split(':') ]
-        animname = animspec[0]
-        if animname not in actions:
-            print('Action "%s" not found in current armature' % animname)
-            continue
-        try:
-            startframe = int(animspec[1])
-        except:
+
+    print("Collect animations at:", scene.render.fps,"FPS")
+
+    if len(animspecs) == 0:
+        for action in actions:
+            animname = action.name
             startframe = None
-        try:
-            endframe = int(animspec[2])
-        except:
             endframe = None
-        try:
-            fps = float(animspec[3])
-        except:
             fps = float(scene.render.fps)
-        try:
-            flags = int(animspec[4])
-        except:
             flags = 0
-        framedata = collectAnim(context, armature, scale, bones, actions[animname], startframe, endframe)
-        anims.append(Animation(animname, framedata, fps, flags))
+            framedata = collectAnim(context, armature, scale, bones, actions[animname], startframe, endframe)
+            anims.append(Animation(animname, framedata, fps, flags))
+    else:
+        for animspec in animspecs:
+            animspec = [ arg.strip() for arg in animspec.split(':') ]
+            animname = animspec[0]
+            if animname not in actions:
+                print('Action "%s" not found in current armature' % animname)
+                continue
+            try:
+                startframe = int(animspec[1])
+            except:
+                startframe = None
+            try:
+                endframe = int(animspec[2])
+            except:
+                endframe = None
+            try:
+                fps = float(animspec[3])
+            except:
+                fps = float(scene.render.fps)
+            try:
+                flags = int(animspec[4])
+            except:
+                flags = 0
+            framedata = collectAnim(context, armature, scale, bones, actions[animname], startframe, endframe)
+            anims.append(Animation(animname, framedata, fps, flags))
     armature.animation_data.action = oldaction
     scene.frame_set(oldframe)
     return anims
 
  
-def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False, usemods = False, filetype = 'IQM', namedmaterialmeshes = False):
+def collectMeshes(context, bones, parentWorld, matfun, useskel = True, usecol = False, usemods = False, filetype = 'IQM', namedmaterialmeshes = False):
     vertwarn = []
     objs = context.selected_objects #context.scene.objects
     meshes = []
@@ -822,10 +856,9 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
             data = obj.evaluated_get(dg).to_mesh(preserve_all_data_layers=True, depsgraph=dg) if usemods else obj.original.to_mesh(preserve_all_data_layers=True, depsgraph=dg)
             if not data.polygons:
                 continue
-            coordmatrix = obj.matrix_world
+            coordmatrix = parentWorld @ obj.matrix_world
             normalmatrix = coordmatrix.inverted_safe().transposed()
-            if scale != 1.0:
-                coordmatrix = mathutils.Matrix.Scale(scale, 4) @ coordmatrix 
+            
             materials = {}
             matnames = {}
             groups = obj.vertex_groups
@@ -1068,17 +1101,21 @@ def exportIQM(context, filename, usemesh = True, usemods = False, useskel = True
 
     bonelist = sorted(bones.values(), key = lambda bone: bone.index)
     if usemesh:
-        meshes = collectMeshes(context, bones, scale, matfun, useskel, usecol, usemods, filetype, namedmaterialmeshes)
+        if armature:
+            transform = mathutils.Matrix.Scale(scale, 4) @ armature.matrix_world.inverted_safe()
+            meshes = collectMeshes(context, bones, transform, matfun, useskel, usecol, usemods, filetype, namedmaterialmeshes)
+        else:
+            transform = mathutils.Matrix.Scale(scale, 4)
+            meshes = collectMeshes(context, bones, transform, matfun, useskel, usecol, usemods, filetype, namedmaterialmeshes)
+
     else:
         meshes = []
 
     if armature:
         poseArmature(context, armature, oldpose)
 
-    if useskel and animspecs:
-        anims = collectAnims(context, armature, scale, bonelist, animspecs)
-    else:
-        anims = []
+    # export all animations if no animspecs specified
+    anims = collectAnims(context, armature, scale, bonelist, animspecs)
 
     if filetype == 'IQM':
         iqm = IQMFile()
@@ -1160,4 +1197,3 @@ def unregister():
 
 if __name__ == "__main__":
     register()
-
