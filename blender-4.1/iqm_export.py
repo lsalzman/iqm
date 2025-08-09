@@ -735,9 +735,33 @@ def collectBones(context, armature, scale):
                 worklist.append(child)
     print('Collected %d bones' % len(worklist))
     return bones
+    
+def clearArmaturePose(armature, clear_object=False):
+    """Reset every pose-bone to identity (rest) so sampling starts clean."""
+    for pb in armature.pose.bones:
+        pb.location = mathutils.Vector((0.0, 0.0, 0.0))
+        if pb.rotation_mode == 'QUATERNION':
+            pb.rotation_quaternion = mathutils.Quaternion((1.0, 0.0, 0.0, 0.0))
+        else:
+            pb.rotation_euler = mathutils.Euler((0.0, 0.0, 0.0), pb.rotation_mode)
+        pb.scale = mathutils.Vector((1.0, 1.0, 1.0))
+        pb.matrix_basis = mathutils.Matrix.Identity(4)
 
+    if clear_object:
+        armature.location = mathutils.Vector((0.0, 0.0, 0.0))
+        if armature.rotation_mode == 'QUATERNION':
+            armature.rotation_quaternion = mathutils.Quaternion((1.0, 0.0, 0.0, 0.0))
+        else:
+            armature.rotation_euler = mathutils.Euler((0.0, 0.0, 0.0), armature.rotation_mode)
+        armature.scale = Vector((1.0, 1.0, 1.0))
 
 def collectAnim(context, armature, scale, bones, action, startframe = None, endframe = None):
+    scene = context.scene
+    depsgraph = context.evaluated_depsgraph_get()
+
+    clearArmaturePose(armature, clear_object=False)
+    depsgraph.update()
+
     if startframe is None or endframe is None:
         startframe, endframe = action.frame_range
         startframe = int(startframe)
@@ -1160,4 +1184,5 @@ def unregister():
 
 if __name__ == "__main__":
     register()
+
 
