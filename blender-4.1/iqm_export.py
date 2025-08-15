@@ -664,6 +664,14 @@ def derigifyBones(context, armature, scale):
     def2org = {}
     defparent = {}
     defchildren = {}
+
+    # Find the root motion bone
+    root_bone = None
+    for bone in data.bones.values():
+        if bone.name.lower() == 'root' and bone.parent is None:
+            root_bone = bone
+            break
+
     for bone in data.bones.values():
         if bone.name.startswith('ORG-'):
             orgbones[bone.name[4:]] = bone
@@ -672,7 +680,20 @@ def derigifyBones(context, armature, scale):
             defnames.append(bone.name[4:])
             defbones[bone.name[4:]] = bone
             defchildren[bone.name[4:]] = []
+
+    if root_bone:
+        root_name = root_bone.name
+        defnames.append(root_name)
+        defbones[root_name] = root_bone
+        defchildren[root_name] = []
+        # Create a dummy org entry for the root bone
+        orgbones[root_name] = root_bone
+        org2defs[root_name] = [root_name]
+        def2org[root_name] = root_name
+
     for name, bone in defbones.items():
+        if root_bone and name == root_bone.name:
+            continue
         orgname = name
         orgbone = orgbones.get(orgname)
         splitname = -1
@@ -686,7 +707,11 @@ def derigifyBones(context, armature, scale):
                 orgname = name[:splitname] + suffix
                 orgbone = orgbones.get(orgname)
         org2defs[orgname].append(name)
-        def2org[name] = orgname
+        if root_bone and name == root_bone.name:
+            def2org[name] = root_name
+        else:
+            def2org[name] = orgname
+
     for defs in org2defs.values():
         defs.sort()
     for name in defnames:
@@ -701,6 +726,8 @@ def derigifyBones(context, armature, scale):
                 if orgparent and orgparent.name.startswith('ORG-'):
                     orgpname = orgparent.name[4:]
                     defparent[name] = org2defs[orgpname][-1]
+                elif orgparent and root_bone and orgparent == root_bone:
+                    defparent[name] = root_bone.name
             else:
                 defparent[name] = defs[i-1]
         if name in defparent:
@@ -709,6 +736,10 @@ def derigifyBones(context, armature, scale):
     bones = {}
     worldmatrix = armature.matrix_world
     worklist = [ bone for bone in defnames if bone not in defparent ]
+
+    # sort to ensure root is first
+    worklist.sort(key=lambda b: (b != "root", b))
+
     for index, bname in enumerate(worklist):
         bone = defbones[bname]
         bonematrix = worldmatrix @ bone.matrix_local
@@ -724,7 +755,11 @@ def collectBones(context, armature, scale):
     data = armature.data
     bones = {}
     worldmatrix = armature.matrix_world
-    worklist = [ bone for bone in data.bones.values() if not bone.parent ]
+    # ensure root and deformed bones appear first
+    worklist = sorted(
+        (bone for bone in data.bones.values() if not bone.parent),
+        key=lambda b: (b.name != "root", b.use_deform == False, b.name)
+    )
     for index, bone in enumerate(worklist):
         bonematrix = worldmatrix @ bone.matrix_local
         if scale != 1.0:
