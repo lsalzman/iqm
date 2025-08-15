@@ -738,9 +738,7 @@ def derigifyBones(context, armature, scale):
     worklist = [ bone for bone in defnames if bone not in defparent ]
 
     # sort to ensure root is first
-    name = lambda b: b if isinstance(b, str) else getattr(b, "name", "")
-    root_name = root_bone.name if root_bone else None
-    worklist.sort(key=lambda b: (name(b) != "root" and name(b) != root_name, name(b)))
+    worklist.sort(key=lambda b: (b != "root", b))
 
     for index, bname in enumerate(worklist):
         bone = defbones[bname]
