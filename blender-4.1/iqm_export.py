@@ -732,7 +732,7 @@ def demaximoBones(context, armature, scale):
 
     root_bone = None
     for bone in data.bones.values():
-        if bone.name == 'Ctrl_Master':
+        if bone.name == 'Ctrl_Hips':
             root_bone = bone
             break
 
@@ -746,7 +746,7 @@ def demaximoBones(context, armature, scale):
             ctrl2defs[bone_name] = [bone_name]
 
     if root_bone:
-        root_name = 'Master'
+        root_name = 'root'
         defnames.append(root_name)
         defbones[root_name] = root_bone
         defchildren[root_name] = []
@@ -763,12 +763,12 @@ def demaximoBones(context, armature, scale):
     for name in defnames:
         bone = defbones[name]
         
-        if root_bone and name == 'Master':
+        if root_bone and name == 'root':
             continue
             
         if bone.parent:
             if bone.parent == root_bone:
-                defparent[name] = 'Master'
+                defparent[name] = 'root'
             elif bone.parent.name.startswith('mixamorig:'):
                 parent_name = bone.parent.name[10:]
                 if parent_name in defbones:
@@ -782,9 +782,10 @@ def demaximoBones(context, armature, scale):
     worklist = [bone for bone in defnames if bone not in defparent]
 
     # Sort to ensure Master/root is first
-    worklist.sort(key=lambda b: (b != "Master", b))
+    worklist.sort(key=lambda b: (b != "root", b))
 
     for index, bname in enumerate(worklist):
+        print(bname)
         bone = defbones[bname]
         bonematrix = worldmatrix @ bone.matrix_local
         if scale != 1.0:
