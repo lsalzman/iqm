@@ -781,7 +781,7 @@ def demaximoBones(context, armature, scale):
     worldmatrix = armature.matrix_world
     worklist = [bone for bone in defnames if bone not in defparent]
 
-    # Sort to ensure Master/root is first
+    # Sort to ensure root is first
     worklist.sort(key=lambda b: (b != "root", b))
 
     for index, bname in enumerate(worklist):
