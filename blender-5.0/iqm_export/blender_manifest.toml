@@ -1,0 +1,32 @@
+schema_version = "1.0.0"
+
+id = "iqm_exporter"
+version = "2026.8.8"
+
+name = "IQE/IQM Exporter"
+
+tagline = "Export Inter-Quake Model (.iqe/.iqm)"
+
+maintainer = "Lee Salzman"
+
+type = "add-on"
+
+website = "https://github.com/lsalzman/iqm"
+
+tags = [
+  "Import-Export",
+]
+
+blender_version_min = "5.0.0"
+
+license = [
+  "SPDX:CC0-1.0",
+]
+
+copyright = [
+  "2026 Controller Arts",
+  "2012-2025 Lee Salzman",
+]
+
+[permissions]
+files = "Export model files."
