@@ -1,4 +1,4 @@
-IQM Developer Kit 2024-06-23
+IQM Developer Kit 2026-08-14
 
 *** Format information ***
 
