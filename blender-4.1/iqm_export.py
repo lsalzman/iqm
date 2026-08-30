@@ -719,6 +719,87 @@ def derigifyBones(context, armature, scale):
     print('De-rigified %d bones' % len(worklist))
     return bones
 
+def demaximoBones(context, armature, scale):
+    data = armature.data
+
+    defnames = []
+    ctrlbones = {}
+    defbones = {}
+    ctrl2defs = {}
+    def2ctrl = {}
+    defparent = {}
+    defchildren = {}
+
+    root_bone = None
+    for bone in data.bones.values():
+        if bone.name == 'Ctrl_Hips':
+            root_bone = bone
+            break
+
+    for bone in data.bones.values():
+        if bone.name.startswith('mixamorig:'):
+            bone_name = bone.name[10:]
+            defnames.append(bone_name)
+            defbones[bone_name] = bone
+            defchildren[bone_name] = []
+            ctrlbones[bone_name] = bone
+            ctrl2defs[bone_name] = [bone_name]
+
+    if root_bone:
+        root_name = 'root'
+        defnames.append(root_name)
+        defbones[root_name] = root_bone
+        defchildren[root_name] = []
+        ctrlbones[root_name] = root_bone
+        ctrl2defs[root_name] = [root_name]
+        def2ctrl[root_name] = root_name
+
+    for name in defnames:
+        def2ctrl[name] = name
+
+    for defs in ctrl2defs.values():
+        defs.sort()
+
+    for name in defnames:
+        bone = defbones[name]
+        
+        if root_bone and name == 'root':
+            continue
+            
+        if bone.parent:
+            if bone.parent == root_bone:
+                defparent[name] = 'root'
+            elif bone.parent.name.startswith('mixamorig:'):
+                parent_name = bone.parent.name[10:]
+                if parent_name in defbones:
+                    defparent[name] = parent_name
+        
+        if name in defparent:
+            defchildren[defparent[name]].append(name)
+
+    bones = {}
+    worldmatrix = armature.matrix_world
+    worklist = [bone for bone in defnames if bone not in defparent]
+
+    # Sort to ensure root is first
+    worklist.sort(key=lambda b: (b != "root", b))
+
+    for index, bname in enumerate(worklist):
+        print(bname)
+        bone = defbones[bname]
+        bonematrix = worldmatrix @ bone.matrix_local
+        if scale != 1.0:
+            bonematrix.translation *= scale
+        
+        parent_bone = None
+        if bname in defparent and defparent[bname] in bones:
+            parent_bone = bones[defbones[defparent[bname]].name]
+        
+        bones[bone.name] = Bone(bname, bone.name, index, parent_bone, bonematrix)
+        worklist.extend(defchildren[bname])
+    
+    print('De-mixamoed %d bones' % len(worklist))
+    return bones
 
 def collectBones(context, armature, scale):
     data = armature.data
@@ -1024,7 +1105,7 @@ def exportIQE(file, meshes, bones, anims):
     file.write('\n')
 
 
-def exportIQM(context, filename, usemesh = True, usemods = False, useskel = True, usebbox = True, usecol = False, scale = 1.0, animspecs = None, matfun = (lambda prefix, image: image), derigify = False, boneorder = None, namedmaterialmeshes = False):
+def exportIQM(context, filename, usemesh = True, usemods = False, useskel = True, usebbox = True, usecol = False, scale = 1.0, animspecs = None, matfun = (lambda prefix, image: image), derigify = False, demixamo = False, boneorder = None, namedmaterialmeshes = False):
     armature = findArmature(context)
     if useskel and not armature:
         print('No armature selected')
@@ -1041,6 +1122,8 @@ def exportIQM(context, filename, usemesh = True, usemods = False, useskel = True
     if useskel:
         if derigify:
             bones = derigifyBones(context, armature, scale)
+        elif demixamo:
+            bones = demaximoBones(context, armature, scale)
         else:
             bones = collectBones(context, armature, scale)
     else:
@@ -1122,6 +1205,7 @@ class ExportIQM(bpy.types.Operator, bpy_extras.io_utils.ExportHelper):
     #usetrans: bpy.props.FloatVectorProperty(name="Translate", description="Translate position of exported model", step=50, precision=2, size=3)
     matfmt: bpy.props.EnumProperty(name="Materials", description="Material name format", items=[("m+i-e", "material+image-ext", ""), ("m", "material", ""), ("i", "image", "")], default="m+i-e")
     derigify: bpy.props.BoolProperty(name="De-rigify", description="Export only deformation bones from rigify", default=False)
+    demixamo: bpy.props.BoolProperty(name="De-mixamo", description="Export only deformation bones from mixamo", default=False)
     namedmaterialmeshes: bpy.props.BoolProperty(name="Named material meshes", description="Append material names to individual exported mesh objects, for meshes with multiple materials", default=False)
     boneorder: bpy.props.StringProperty(name="Bone order", description="Override ordering of bones", subtype="FILE_NAME", default="")
 
