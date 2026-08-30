@@ -16,6 +16,7 @@ import os, struct, math
 import mathutils
 import bpy
 import bpy_extras.io_utils
+from bpy_extras.io_utils import axis_conversion
 
 IQM_POSITION     = 0
 IQM_TEXCOORD     = 1
@@ -807,7 +808,7 @@ def collectAnims(context, armature, scale, bones, animspecs):
     return anims
 
  
-def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False, filetype = 'IQM'):
+def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False, filetype = 'IQM', flipyz = False):
     vertwarn = []
     objs = context.selected_objects #context.scene.objects
     meshes = []
@@ -817,6 +818,9 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
             if not data.tessfaces:
                 continue
             coordmatrix = obj.matrix_world
+            yzflipper = axis_conversion(to_forward='-Z', to_up='Y').to_4x4()
+            if flipyz:
+                coordmatrix = yzflipper * coordmatrix
             normalmatrix = coordmatrix.inverted().transposed()
             if scale != 1.0:
                 coordmatrix = mathutils.Matrix.Scale(scale, 4) * coordmatrix 
@@ -947,7 +951,8 @@ def collectMeshes(context, bones, scale, matfun, useskel = True, usecol = False,
 
                 # Quake winding is reversed
                 for i in range(2, len(faceverts)):
-                    mesh.tris.append((faceverts[0], faceverts[i], faceverts[i-1])) 
+                    mesh.tris.append((faceverts[0], faceverts[i-1], faceverts[i])) 
+                    #mesh.tris.append((faceverts[0], faceverts[i], faceverts[i-1])) 
  
     for mesh in meshes:
         mesh.optimize()
@@ -1016,7 +1021,7 @@ def exportIQE(file, meshes, bones, anims):
     file.write('\n')
 
 
-def exportIQM(context, filename, usemesh = True, useskel = True, usebbox = True, usecol = False, scale = 1.0, animspecs = None, matfun = (lambda prefix, image: image), derigify = False, boneorder = None):
+def exportIQM(context, filename, usemesh = True, useskel = True, usebbox = True, usecol = False, scale = 1.0, animspecs = None, matfun = (lambda prefix, image: image), derigify = False, boneorder = None, flipyz = False):
     armature = findArmature(context)
     if useskel and not armature:
         print('No armature selected')
@@ -1056,7 +1061,7 @@ def exportIQM(context, filename, usemesh = True, useskel = True, usebbox = True,
 
     bonelist = sorted(bones.values(), key = lambda bone: bone.index)
     if usemesh:
-        meshes = collectMeshes(context, bones, scale, matfun, useskel, usecol, filetype)
+        meshes = collectMeshes(context, bones, scale, matfun, useskel, usecol, filetype, flipyz)
     else:
         meshes = []
     if useskel and animspecs:
@@ -1106,6 +1111,7 @@ class ExportIQM(bpy.types.Operator, bpy_extras.io_utils.ExportHelper):
     matfmt = bpy.props.EnumProperty(name="Materials", description="Material name format", items=[("m+i-e", "material+image-ext", ""), ("m", "material", ""), ("i", "image", "")], default="m+i-e")
     derigify = bpy.props.BoolProperty(name="De-rigify", description="Export only deformation bones from rigify", default=False)
     boneorder = bpy.props.StringProperty(name="Bone order", description="Override ordering of bones", subtype="FILE_NAME", default="")
+    flipyz = bpy.props.BoolProperty(name="Flip Y and Z", description="Flip the Y and Z axes to adapt model for upwards Y oriented usage", default=False)
 
     def execute(self, context):
         if self.properties.matfmt == "m+i-e":
@@ -1114,7 +1120,7 @@ class ExportIQM(bpy.types.Operator, bpy_extras.io_utils.ExportHelper):
             matfun = lambda prefix, image: prefix
         else:
             matfun = lambda prefix, image: image
-        exportIQM(context, self.properties.filepath, self.properties.usemesh, self.properties.useskel, self.properties.usebbox, self.properties.usecol, self.properties.usescale, self.properties.animspec, matfun, self.properties.derigify, self.properties.boneorder)
+        exportIQM(context, self.properties.filepath, self.properties.usemesh, self.properties.useskel, self.properties.usebbox, self.properties.usecol, self.properties.usescale, self.properties.animspec, matfun, self.properties.derigify, self.properties.boneorder, self.properties.flipyz)
         return {'FINISHED'}
 
     def check(self, context):
